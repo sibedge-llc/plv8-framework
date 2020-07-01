@@ -1,6 +1,6 @@
 /*SQL
-DROP FUNCTION get_houses;
-CREATE OR REPLACE FUNCTION get_houses(
+DROP FUNCTION sql_change;
+CREATE OR REPLACE FUNCTION sql_change(
   table text,
   entities jsonb,
   idKey text)
@@ -9,12 +9,16 @@ SQL*/
 
 const NOTICE = 'NOTICE';
 
-var plv8 = require("../helpers/helper.js");
-var args = require("../helpers/sqlChange.js");
+const top = require("../helpers/top.js");
+const plv8 = require(top.data.plv8);
+const args = require(top.data.sqlChange);
 
 const entities = args.entities;
 const table = args.table;
 const idKey = args.idKey;
+
+console.log('entities:');
+console.log(entities);
 
 /*BEGIN*/
 

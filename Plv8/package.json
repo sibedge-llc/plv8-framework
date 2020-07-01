@@ -4,7 +4,7 @@
   "description": "Debug and deploy too for plv8 functions",
   "main": "test/sqliteTest.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --silent=false",
     "debug": "node --nolazy app.js",
     "deploy": "node deploy.js"
   },
@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "app-root-path": "^3.0.0",
+    "jest": "^26.1.0",
     "pg-native": "^3.0.0",
     "sqlite-sync": "^0.3.9"
   }
