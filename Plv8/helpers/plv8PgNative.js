@@ -20,11 +20,11 @@ exports.quote_nullable = function (str)
 
 exports.execute = function (query)
 {
-    var Client = require('pg-native');
-    var client = new Client();
+    const Client = require('pg-native');
+    let client = new Client();
 
     client.connectSync('postgresql://fm:1q2w3e$R@192.168.33.140:5432/FmStage');
-    var ret = client.querySync(query);
+    let ret = client.querySync(query);
     client.end();
 
     return ret;

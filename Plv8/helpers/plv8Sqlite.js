@@ -20,8 +20,8 @@ exports.quote_nullable = function (str)
 
 exports.execute = function (query)
 {
-    var sqlite = require('sqlite-sync');
-    var appRoot = require('app-root-path');
+    const sqlite = require('sqlite-sync');
+    const appRoot = require('app-root-path');
 
     sqlite.connect(appRoot + '/test/test.db');
     console.log(appRoot + '/test/test.db');

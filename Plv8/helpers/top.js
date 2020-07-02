@@ -1,6 +1,6 @@
 let data = {
   plv8: "../helpers/plv8PgNative.js",
-  sqlChange: ""
+  funcArgs: {}
 }
 
 exports.data = data;

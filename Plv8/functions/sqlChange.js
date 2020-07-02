@@ -11,14 +11,11 @@ const NOTICE = 'NOTICE';
 
 const top = require("../helpers/top.js");
 const plv8 = require(top.data.plv8);
-const args = require(top.data.sqlChange);
+const args = require(top.data.funcArgs.sqlChange);
 
 const entities = args.entities;
 const table = args.table;
 const idKey = args.idKey;
-
-console.log('entities:');
-console.log(entities);
 
 /*BEGIN*/
 

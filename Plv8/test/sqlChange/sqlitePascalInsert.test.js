@@ -12,10 +12,12 @@ test('Pascal-case table, insert data test', () =>
   const dbPath = appRoot + '/test/test.db';
   sqlite.connect(dbPath);
 
+  const tableName = "Families";
+
   const dropSql = 'DROP TABLE IF EXISTS Families';
 
   const createSql = `
-    CREATE TABLE IF NOT EXISTS Families
+    CREATE TABLE IF NOT EXISTS ${tableName}
     (
       Id integer PRIMARY KEY NOT NULL,
       Name text,
@@ -32,20 +34,9 @@ test('Pascal-case table, insert data test', () =>
 
   sqlite.connect(dbPath);
 
-  let items = sqlite.run('SELECT * FROM Families');
+  let items = sqlite.run(`SELECT * FROM ${tableName}`);
   expect(items.length).toBe(2);
 
   sqlite.run(dropSql);
   sqlite.close();
 });
-
-/*
-fs.readFile('./functions/sqlChange.js', 'utf8', function(err, data)
-{
-    data = data.replace("../helpers/plv8PgNative.js", "../helpers/plv8Sqlite.js");
-    eval(data);
-});
-*/
-
-
-

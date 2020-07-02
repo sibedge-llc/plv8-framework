@@ -1,24 +1,24 @@
-var db = require ("./helper.js");
-var fs = require('fs');
+const db = require ("./helper.js");
+const fs = require('fs');
 
 fs.readFile('./createFunction.js', 'utf8', function(err, data)
 {
-    var beginMark = "/*BEGIN*/";
-    var sqlOpenMark = "/*SQL";
-    var sqlCloseMark = "SQL*/";
+    const beginMark = "/*BEGIN*/";
+    const sqlOpenMark = "/*SQL";
+    const sqlCloseMark = "SQL*/";
 
-    var header = data.substr(0, data.indexOf(beginMark));
+    let header = data.substr(0, data.indexOf(beginMark));
 
-    var scriptHeader = header.substr(header.indexOf(sqlOpenMark) + sqlOpenMark.length);
+    let scriptHeader = header.substr(header.indexOf(sqlOpenMark) + sqlOpenMark.length);
     scriptHeader = scriptHeader.substr(0, scriptHeader.indexOf(sqlCloseMark)) + "AS $$";
 
-    var scriptBody = data.substr(data.indexOf(beginMark) + beginMark.length)
+    let scriptBody = data.substr(data.indexOf(beginMark) + beginMark.length)
         .replace("exports.ret =", "return");
 
-    var script = `${scriptHeader}
+    let script = `${scriptHeader}
 ${scriptBody}
 $$ LANGUAGE plv8;`;
 
-    var result = db.execute(script);
+    let result = db.execute(script);
     console.log(result);
 });
