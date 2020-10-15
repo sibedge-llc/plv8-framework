@@ -23,7 +23,7 @@ exports.execute = function (query)
     const Client = require('pg-native');
     let client = new Client();
 
-    client.connectSync('postgresql://fm:1q2w3e$R@192.168.33.140:5432/FmStage');
+    client.connectSync('postgresql://postgres:postgres@localhost:5439/FmStage');
     let ret = client.querySync(query);
     client.end();
 

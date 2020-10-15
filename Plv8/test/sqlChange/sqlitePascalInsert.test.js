@@ -4,7 +4,7 @@ const testHelper = require(appRoot + '/helpers/testHelper.js');
 
 test('Pascal-case table, insert data test', () =>
 {
-  const args = require("/home/alexey/work/plv8-boilerplate/Plv8/test/sqlChange/sqlitePascalInsert.data.js");
+  const args = require(appRoot + "/test/sqlChange/sqlitePascalInsert.data.js");
   const entities = args.entities;
   console.log('entities-0:')
   console.log(entities);

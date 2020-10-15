@@ -1,24 +1,58 @@
-const db = require ("./helper.js");
+const db = require ("./helpers/plv8PgNative.js");
 const fs = require('fs');
 
-fs.readFile('./createFunction.js', 'utf8', function(err, data)
-{
-    const beginMark = "/*BEGIN*/";
-    const sqlOpenMark = "/*SQL";
-    const sqlCloseMark = "SQL*/";
+const beginMark = "/*BEGIN*/";
+const sqlOpenMark = "/*SQL";
+const sqlCloseMark = "SQL*/";
+const apiMark = "/*API*/";
 
-    let header = data.substr(0, data.indexOf(beginMark));
+var args = process.argv.slice(2);
+var funcName = args[0];
+
+const readFromFile = (file) => new Promise((resolve, reject) =>
+    fs.readFile(file, 'utf8', (err, data) => {
+        resolve(data);
+    })
+);
+
+function runScript(data, scriptApi)
+{
+    const header = data.substr(0, data.indexOf(beginMark));
 
     let scriptHeader = header.substr(header.indexOf(sqlOpenMark) + sqlOpenMark.length);
     scriptHeader = scriptHeader.substr(0, scriptHeader.indexOf(sqlCloseMark)) + "AS $$";
 
-    let scriptBody = data.substr(data.indexOf(beginMark) + beginMark.length)
+    const scriptBody = data.substr(data.indexOf(beginMark) + beginMark.length)
         .replace("exports.ret =", "return");
 
-    let script = `${scriptHeader}
+    const script = `${scriptHeader}
+${scriptApi}
 ${scriptBody}
 $$ LANGUAGE plv8;`;
 
     let result = db.execute(script);
     console.log(result);
+}
+
+fs.readFile(`./functions/${funcName}.js`, 'utf8', function(err, data)
+{
+    const apiIndex = data.indexOf(apiMark);
+
+    if (apiIndex >= 0)
+    {
+        const apiDeclareStatement = "var api = {};\n\n";
+
+        let scriptApiDeclare = data.substr(apiIndex + apiMark.length);
+        scriptApiDeclare = scriptApiDeclare.substr(0, scriptApiDeclare.indexOf(sqlOpenMark));
+
+        let apiFunctions = [];
+        eval(scriptApiDeclare);
+        
+        const pathList = apiFunctions.map(item => `./api/${item}.js`);
+
+        Promise.all(pathList.map(fileName => readFromFile(fileName)))
+            .then(scripts => runScript(data, 
+                apiDeclareStatement + scripts.map(s => s.replace("exports.", "api.")).join("\n\n")));        
+    }
+    else runScript(data, '');
 });
