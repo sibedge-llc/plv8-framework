@@ -13,6 +13,7 @@
   "dependencies": {
     "app-root-path": "^3.0.0",
     "jest": "^26.1.0",
+    "node-sql-parser": "^3.1.0",
     "pg-native": "^3.0.0",
     "sqlite-sync": "^0.3.9"
   }

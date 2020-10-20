@@ -51,11 +51,11 @@ String.prototype.trim = function ()
   return this.replace(/^\s+|\s+$/g, "");
 };
 
-function getFilter(arguments, level)
+function getFilter(args, level)
 {
   var qraphqlFilter = '';
 
-  var args = arguments.filter(x => x.name.value === 'filter');
+  var args = args.filter(x => x.name.value === 'filter');
   if (args.length > 0)
   {
     var filter = args[0];
