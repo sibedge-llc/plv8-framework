@@ -3,6 +3,7 @@ let apiFunctions = [];
 apiFunctions = ['gqlquery'];
 
 /*SQL
+DROP FUNCTION IF EXISTS graphql.execute;
 CREATE OR REPLACE FUNCTION graphql.execute(query text, schema text)
 RETURNS JSONB
 SQL*/

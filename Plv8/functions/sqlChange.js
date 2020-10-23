@@ -1,7 +1,7 @@
 /*SQL
-DROP FUNCTION sql_change;
-CREATE OR REPLACE FUNCTION sql_change(
-  table text,
+DROP FUNCTION IF EXISTS plv8.sql_change;
+CREATE OR REPLACE FUNCTION plv8.sql_change(
+  tableName text,
   entities jsonb,
   idKey text)
 RETURNS boolean
@@ -14,11 +14,10 @@ const plv8 = require(top.data.plv8);
 const args = require(top.data.funcArgs.sqlChange);
 
 const entities = args.entities;
-const table = args.table;
+const tableName = args.tableName;
 const idKey = args.idKey;
 
 /*BEGIN*/
-
 function getFieldsSql(entity)
 {
   let ret = `(${Object.keys(entity).map(x => '"' + plv8.quote_ident(x) + '"').join(', ')})`;
@@ -76,7 +75,7 @@ else
 
 if (values.length > 0)
 {
-  let sql = `INSERT INTO "${table}" ${fields} VALUES ${values.join(', ')};`;
+  let sql = `INSERT INTO "${tableName}" ${fields} VALUES ${values.join(', ')};`;
   plv8.elog(NOTICE, sql);
   plv8.execute(sql);
 

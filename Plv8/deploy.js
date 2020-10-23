@@ -26,10 +26,10 @@ function runScript(data, scriptApi)
         .replace("exports.ret =", "return");
 
     const script = `${scriptHeader}
-${scriptApi}
-${scriptBody}
+${scriptApi}${scriptBody}
 $$ LANGUAGE plv8;`;
 
+    console.log(script);
     let result = db.execute(script);
     console.log(result);
 }
@@ -52,7 +52,7 @@ fs.readFile(`./functions/${funcName}.js`, 'utf8', function(err, data)
 
         Promise.all(pathList.map(fileName => readFromFile(fileName)))
             .then(scripts => runScript(data, 
-                apiDeclareStatement + scripts.map(s => s.replace("exports.", "api.")).join("\n\n")));        
+                apiDeclareStatement + scripts.map(s => s.replace("exports.", "api.")).join("\n\n") + '\n'));        
     }
     else runScript(data, '');
 });

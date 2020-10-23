@@ -15,7 +15,7 @@ exports.entities = [
     }
   ];
   
-  exports.table = "Families";
+  exports.tableName = "Families";
   
   exports.idKey = "Id";
   
