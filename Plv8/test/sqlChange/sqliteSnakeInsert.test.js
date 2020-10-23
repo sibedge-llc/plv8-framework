@@ -2,23 +2,23 @@ const sqlite = require('sqlite-sync');
 const appRoot = require('app-root-path');
 const testHelper = require(appRoot + '/helpers/testHelper.js');
 
-test('Pascal-case table, insert data test', () =>
+test('Snake-case table, insert data test', () =>
 {
     const dbPath = appRoot + '/test/test.db';
     sqlite.connect(dbPath);
 
-    const tableName = "Units";
+    const tableName = "users";
 
     const dropSql = `DROP TABLE IF EXISTS ${tableName}`;
 
     const createSql = `
     CREATE TABLE IF NOT EXISTS ${tableName}
     (
-      Id integer PRIMARY KEY NOT NULL,
-      Name text,
-      IsActual boolean,
-      Description text,
-      Value real
+      id integer PRIMARY KEY NOT NULL,
+      name text,
+      is_admin boolean,
+      email text,
+      quality_level real
     );`;
 
     sqlite.run(dropSql);

@@ -20,36 +20,36 @@ const idKey = args.idKey;
 /*BEGIN*/
 function getFieldsSql(entity)
 {
-  let ret = `(${Object.keys(entity).map(x => '"' + plv8.quote_ident(x) + '"').join(', ')})`;
-  return ret;
+    let ret = `(${Object.keys(entity).map(x => '"' + plv8.quote_ident(x) + '"').join(', ')})`;
+    return ret;
 }
 
 function getValuesSql(entity)
 {
-  let values = Object.keys(entity).map(key =>
-  {
-    let value = entity[key];
-    let type = typeof value;
-    
-    if (!value)
+    let values = Object.keys(entity).map(key =>
     {
-      return 'null';
-    }
-    
-    if (type === 'number' || type === 'boolean')
-    {
-      return value;
-    }
+        let value = entity[key];
+        let type = typeof value;
 
-    if (type === 'string')
-    {
-      value = plv8.quote_nullable(value);
-    }
+        if (!value)
+        {
+            return 'null';
+        }
 
-    return `'${value}'`;
-  })
+        if (type === 'number' || type === 'boolean')
+        {
+            return value;
+        }
 
-  return `(${values.join(', ')})`;
+        if (type === 'string')
+        {
+            value = plv8.quote_nullable(value);
+        }
+
+        return `'${value}'`;
+    })
+
+    return `(${values.join(', ')})`;
 }
 
 let fields = '';
@@ -57,31 +57,31 @@ let values = [];
 
 if (Array.isArray(entities))
 {
-  if (entities.length < 1)
-  {
-    exports.ret = false;
-  }
-  else
-  {
-    fields = getFieldsSql(entities[0]);
-    values = entities.map(x => getValuesSql(x));
-  }
+    if (entities.length < 1)
+    {
+        exports.ret = false;
+    }
+    else
+    {
+        fields = getFieldsSql(entities[0]);
+        values = entities.map(x => getValuesSql(x));
+    }
 }
 else
 {
-  fields = getFieldsSql(entities);
-  values.push(getValuesSql(entities));
+    fields = getFieldsSql(entities);
+    values.push(getValuesSql(entities));
 }
 
 if (values.length > 0)
 {
-  let sql = `INSERT INTO "${tableName}" ${fields} VALUES ${values.join(', ')};`;
-  plv8.elog(NOTICE, sql);
-  plv8.execute(sql);
+    let sql = `INSERT INTO "${tableName}" ${fields} VALUES ${values.join(', ')};`;
+    plv8.elog(NOTICE, sql);
+    plv8.execute(sql);
 
-  exports.ret = true;
+    exports.ret = true;
 }
 else
 {
-  exports.ret = false;
+    exports.ret = false;
 }
