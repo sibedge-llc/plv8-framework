@@ -22,9 +22,9 @@ exports.execute = function (query)
 {
     const sqlite = require('sqlite-sync');
     const appRoot = require('app-root-path');
+    const top = require(appRoot + "/helpers/top.js");
 
-    sqlite.connect(appRoot + '/test/test.db');
-    console.log(appRoot + '/test/test.db');
+    sqlite.connect(top.dbPath);
 
     let ret = sqlite.run(query.replace('true', '1').replace('false', '0'));
     console.log(ret);

@@ -1,10 +1,13 @@
 const sqlite = require('sqlite-sync');
 const appRoot = require('app-root-path');
 const testHelper = require(appRoot + '/helpers/testHelper.js');
+const top = require(appRoot + "/helpers/top.js");
 
 test('Snake-case table, insert data test', () =>
 {
-    const dbPath = appRoot + '/test/test.db';
+    const dbPath = appRoot + testHelper.getSqliteFileName(__filename);
+    top.dbPath = dbPath;
+
     sqlite.connect(dbPath);
 
     const tableName = "users";

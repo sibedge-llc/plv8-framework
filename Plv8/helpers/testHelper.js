@@ -22,7 +22,7 @@ exports.astifySql = function(sql)
     return parser.astify(sql.trim(), opt);
 }
 
-function getDataFilename(testFileName)
+function getDataFilename(testFileName, postfix = "data.js")
 {
     let dataPathItems = testFileName.split(/[\\/]/);
     let dataPath = '';
@@ -32,7 +32,10 @@ function getDataFilename(testFileName)
         dataPath = `/${item}${dataPath}`;
     }
 
-    return `/test${dataPath.replace('.test.js', '.data.js')}`;
+    return `/test${dataPath.replace('.test.js', '.' + postfix)}`;
 }
+
+exports.getSqliteFileName = testFileName => "/sqlite/" + getDataFilename(testFileName, "test.db")
+    .split(/[\\/]/).reverse()[0];
 
 exports.getDataFilename = getDataFilename;
