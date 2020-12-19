@@ -38,7 +38,7 @@ var aggFunctions = ['max', 'min', 'avg'];
 var aggFuncPrefix = (aggPostfix[0] === '_') ? '_' : '';
 var aggDict = {};
 aggFunctions.map(x => aggDict[x + aggFuncPrefix] = `${x.toUpperCase()}($)`);
-aggDict['distinct' + aggFuncPrefix] = `COALESCE(array_agg(DISTINCT($)), ARRAY[]::text[])`;
+aggDict['distinct' + aggFuncPrefix] = `array_agg(DISTINCT($))`;
 
 var aliases = plv8.execute('SELECT * FROM graphql.aliases;');
 
