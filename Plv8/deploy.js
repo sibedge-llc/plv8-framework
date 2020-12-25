@@ -15,6 +15,11 @@ const readFromFile = (file) => new Promise((resolve, reject) =>
     })
 );
 
+String.prototype.replaceAll = function(search, replacement) {
+    var target = this;
+    return target.replace(new RegExp(search, 'g'), replacement);
+};
+
 function runScript(data, scriptApi)
 {
     const header = data.substr(0, data.indexOf(beginMark));
@@ -23,7 +28,7 @@ function runScript(data, scriptApi)
     scriptHeader = scriptHeader.substr(0, scriptHeader.indexOf(sqlCloseMark)) + "AS $$";
 
     const scriptBody = data.substr(data.indexOf(beginMark) + beginMark.length)
-        .replace("exports.ret =", "return");
+        .replaceAll("exports.ret =", "return");
 
     const script = `${scriptHeader}
 ${scriptApi}${scriptBody}
