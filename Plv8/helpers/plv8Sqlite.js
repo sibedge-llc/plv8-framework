@@ -1,27 +1,19 @@
+const appRoot = require('app-root-path');
+
 exports.elog = function (type, message)
 {
     console.log(message);
 }
 
-exports.quote_ident = function (str)
-{
-    return str.replace("'", "''");
-}
+const quote = require(appRoot + "/helpers/plv8Quote.js")
 
-exports.quote_literal = function (str)
-{
-    return str.replace("'", "''");
-}
-
-exports.quote_nullable = function (str)
-{
-    return str.replace("'", "''");
-}
+exports.quote_ident = quote.quote_ident;
+exports.quote_literal = quote.quote_literal;
+exports.quote_nullable = quote.quote_nullable;
 
 exports.execute = function (query)
 {
-    const sqlite = require('sqlite-sync');
-    const appRoot = require('app-root-path');
+    const sqlite = require('sqlite-sync');    
     const top = require(appRoot + "/helpers/top.js");
 
     sqlite.connect(top.dbPath);

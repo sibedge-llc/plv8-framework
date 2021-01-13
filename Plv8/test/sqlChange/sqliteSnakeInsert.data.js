@@ -16,5 +16,3 @@ exports.entities = [
 ];
 
 exports.tableName = "users";
-
-exports.idKey = "id";

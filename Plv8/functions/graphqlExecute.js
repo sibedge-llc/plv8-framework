@@ -14,8 +14,7 @@ const top = require("../helpers/top.js");
 const plv8 = require(top.data.plv8);
 const args = require(top.data.funcArgs.graphqlExecute);
 
-const query = args.query;
-const schema = args.schema;
+const { query, schema } = args;
 
 let api = {};
 apiFunctions.map(f => api = { ...api, ...require(`../api/${f}.js`) });
