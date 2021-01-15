@@ -6,8 +6,8 @@ const sqlOpenMark = "/*SQL";
 const sqlCloseMark = "SQL*/";
 const apiMark = "/*API*/";
 
-var args = process.argv.slice(2);
-var funcName = args[0];
+const args = process.argv.slice(2);
+const funcName = args[0];
 
 const readFromFile = (file) => new Promise((resolve, reject) =>
     fs.readFile(file, 'utf8', (err, data) => {
@@ -15,8 +15,9 @@ const readFromFile = (file) => new Promise((resolve, reject) =>
     })
 );
 
-String.prototype.replaceAll = function(search, replacement) {
-    var target = this;
+String.prototype.replaceAll = function(search, replacement)
+{
+    const target = this;
     return target.replace(new RegExp(search, 'g'), replacement);
 };
 

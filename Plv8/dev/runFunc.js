@@ -1,8 +1,7 @@
-const funcName = "sqlChange";
+const args = process.argv.slice(2);
+const funcName = args[0];
 
 const top = require("../helpers/top.js");
-top.data.plv8 = "../helpers/plv8PgNative.js";
-
 top.data.funcArgs[funcName] = `../test/${funcName}/pgDev.data.js`;
 
 const func = require(`../functions/${funcName}.js`);

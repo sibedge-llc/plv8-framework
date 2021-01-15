@@ -11,7 +11,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\dev\\graphqlExecuteMock.js" //, "args": ["graphqlExecute"]
+            "program": "${workspaceFolder}\\dev\\runFunc.js", "args": ["sqlChange"]
         }
     ]
 }
