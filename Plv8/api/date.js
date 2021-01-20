@@ -7,4 +7,4 @@ exports.dateToString = function(date)
             (mm>9 ? '' : '0') + mm,
             (dd>9 ? '' : '0') + dd
            ].join('-');
-};
+}

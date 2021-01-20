@@ -58,7 +58,7 @@ fs.readFile(`./functions/${funcName}.js`, 'utf8', function(err, data)
 
         Promise.all(pathList.map(fileName => readFromFile(fileName)))
             .then(scripts => runScript(data, 
-                apiDeclareStatement + scripts.map(s => s.replace("exports.", "api.")).join("\n\n") + '\n'));        
+                apiDeclareStatement + scripts.map(s => s.replaceAll("exports.", "api.")).join("\n\n") + '\n'));        
     }
     else runScript(data, '');
 });
