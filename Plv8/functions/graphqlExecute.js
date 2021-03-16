@@ -33,7 +33,7 @@ var idField = 'Id';
 var idPostfix = 'Id';
 var aggPostfix = 'Agg';
 
-var aggFunctions = ['max', 'min', 'avg'];
+var aggFunctions = ['max', 'min', 'avg', 'sum'];
 var aggFuncPrefix = (aggPostfix[0] === '_') ? '_' : '';
 var aggDict = {};
 aggFunctions.map(x => aggDict[x + aggFuncPrefix] = `${x.toUpperCase()}($)`);
