@@ -26,7 +26,10 @@ var operators =
     greater: '>',
     lessOrEquals: '<=',
     greaterOrEquals: '>=',
-    contains: ' ILIKE '
+    contains: ' ILIKE ',
+    notContains: ' NOT ILIKE ',
+    arrayContains: ' = ANY',
+    arrayNotContains: ' != ALL'
 };
 
 var idField = 'Id';
@@ -73,12 +76,19 @@ function getFilter(args, level)
                 else
                 {
                     var value1 = (filterVal.value.fields[0].value.kind === 'StringValue')
-                        ? (filterVal.value.fields[0].name.value === 'contains'
+                        ? ((filterVal.value.fields[0].name.value === 'contains' || filterVal.value.fields[0].name.value === 'notContains')
                             ? `'%${filterVal.value.fields[0].value.value}%'`
                             : `'${filterVal.value.fields[0].value.value}'`)
                         : filterVal.value.fields[0].value.value;
 
                     var operator = operators[filterVal.value.fields[0].name.value];
+                    
+                    if (operator === operators.arrayContains
+                           || operator === operators.arrayNotContains)
+                    {
+                        return `${value1}${operator}(a${level}."${filterVal.name.value}")`;
+                    }
+
                     return `a${level}."${filterVal.name.value}"${operator}${value1}`;
                 }
             });
