@@ -15,4 +15,4 @@ exports.entities = [
     }
 ];
 
-exports.tableName = "Units";
+exports.tableName = "units";

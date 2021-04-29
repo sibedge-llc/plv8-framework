@@ -37,6 +37,7 @@ test('Single entity insert data test', () =>
     
     const item = items[0];
     expect(item.name).toBe('Vladimir');
+    expect(item['is_admin']).toBe(1);
     expect(item.id).toBe(15);
 
     sqlite.run(dropSql);

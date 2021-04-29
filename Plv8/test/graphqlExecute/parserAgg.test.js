@@ -23,9 +23,9 @@ test('Mock, aggregate operators should be used', () =>
 
     expect(columns[1].expr.type).toBe("aggr_func");
     expect(columns[1].expr.name).toBe("MAX");
-    expect(columns[1].expr.args.expr.column).toBe("Value");
+    expect(columns[1].expr.args.expr.column).toBe("value");
 
     expect(columns[2].expr.type).toBe("aggr_func");
     expect(columns[2].expr.name).toBe("AVG");
-    expect(columns[2].expr.args.expr.column).toBe("Age");
+    expect(columns[2].expr.args.expr.column).toBe("age");
 });

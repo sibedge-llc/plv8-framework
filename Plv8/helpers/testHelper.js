@@ -3,8 +3,14 @@ function run(func, fileName, plv8Helper)
     const top = require("../helpers/top.js");
     top.data.plv8 = `../helpers/${plv8Helper}.js`;
     top.data.funcArgs[func] = `..${getDataFilename(fileName)}`;
-    
-    const func1 = require (`../functions/${func}.js`);
+
+    let func1;
+
+    jest.isolateModules(() =>
+    {
+        func1 = require(`../functions/${func}.js`);
+    });
+
     return func1.ret;
 }
 

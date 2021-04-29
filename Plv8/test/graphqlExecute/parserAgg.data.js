@@ -1,8 +1,8 @@
 exports.query = ` query {
-    UsersAgg {
+    users_agg {
         count
-        maxValue
-        avgAge
+        max_value
+        avg_age
       }
   }
 `;

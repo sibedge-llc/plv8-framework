@@ -32,9 +32,9 @@ var operators =
     arrayNotContains: ' != ALL'
 };
 
-var idField = 'Id';
-var idPostfix = 'Id';
-var aggPostfix = 'Agg';
+var idField = 'id';
+var idPostfix = '_id';
+var aggPostfix = '_agg';
 
 var aggFunctions = ['max', 'min', 'avg', 'sum'];
 var aggFuncPrefix = (aggPostfix[0] === '_') ? '_' : '';

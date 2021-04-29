@@ -1,6 +1,6 @@
 exports.query = ` query {
-    UsersAgg {
-        distinctType
+    users_agg {
+        distinct_type
       }
   }
 `;
