@@ -5,9 +5,10 @@ const beginMark = "/*BEGIN*/";
 const sqlOpenMark = "/*SQL";
 const sqlCloseMark = "SQL*/";
 const apiMark = "/*API*/";
+const functionsFolder = "./functions/";
 
 const args = process.argv.slice(2);
-const funcName = args[0];
+const functionName = args[0];
 
 const readFromFile = (file) => new Promise((resolve, reject) =>
     fs.readFile(file, 'utf8', (err, data) => {
@@ -21,8 +22,10 @@ String.prototype.replaceAll = function(search, replacement)
     return target.split(search).join(replacement);
 };
 
-function runScript(data, scriptApi)
+function runScript(data, scriptApi, funcName)
 {
+    console.log(`\n----- Deploying function: ${funcName} -----`);
+
     const header = data.substr(0, data.indexOf(beginMark));
 
     let scriptHeader = header.substr(header.indexOf(sqlOpenMark) + sqlOpenMark.length);
@@ -40,25 +43,40 @@ $$ LANGUAGE plv8;`;
     console.log(result);
 }
 
-fs.readFile(`./functions/${funcName}.js`, 'utf8', function(err, data)
+function deployFunc(funcName)
 {
-    const apiIndex = data.indexOf(apiMark);
-
-    if (apiIndex >= 0)
+    fs.readFile(`${functionsFolder}${funcName}`, 'utf8', function (err, data)
     {
-        const apiDeclareStatement = "var api = {};\n\n";
+        const apiIndex = data.indexOf(apiMark);
 
-        let scriptApiDeclare = data.substr(apiIndex + apiMark.length);
-        scriptApiDeclare = scriptApiDeclare.substr(0, scriptApiDeclare.indexOf(sqlOpenMark));
+        if (apiIndex >= 0)
+        {
+            const apiDeclareStatement = "var api = {};\n\n";
 
-        let apiFunctions = [];
-        eval(scriptApiDeclare);
-        
-        const pathList = apiFunctions.map(item => `./api/${item}.js`);
+            let scriptApiDeclare = data.substr(apiIndex + apiMark.length);
+            scriptApiDeclare = scriptApiDeclare.substr(0, scriptApiDeclare.indexOf(sqlOpenMark));
 
-        Promise.all(pathList.map(fileName => readFromFile(fileName)))
-            .then(scripts => runScript(data, 
-                apiDeclareStatement + scripts.map(s => s.replaceAll("exports.", "api.")).join("\n\n") + '\n'));        
-    }
-    else runScript(data, '');
-});
+            let apiFunctions = [];
+            eval(scriptApiDeclare);
+
+            const pathList = apiFunctions.map(item => `./api/${item}.js`);
+
+            Promise.all(pathList.map(fileName => readFromFile(fileName)))
+                .then(scripts => runScript(data,
+                    apiDeclareStatement + scripts.map(s => s.replaceAll("exports.", "api.")).join("\n\n") + '\n',
+                    funcName));
+        }
+        else runScript(data, '', funcName);
+    })
+}
+
+if (functionName)
+{
+    deployFunc(`${functionName}.js`);
+}
+else
+{
+    fs.readdirSync(functionsFolder).forEach(file => {
+        deployFunc(file);
+    });
+}
