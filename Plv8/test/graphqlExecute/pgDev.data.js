@@ -1,9 +1,8 @@
-exports.query = ` query {
-    Families (take: 10) {
-        Id
-        Name
-      }
+exports.query = `query {
+  anzsic (take:5) {
+    id
   }
+}
 `;
 
 exports.schema = 'public';
