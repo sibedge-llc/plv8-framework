@@ -53,3 +53,9 @@ UNION
     additional_foreign_keys.table_name
    FROM graphql.additional_foreign_keys
 WITH DATA;
+
+CREATE TABLE graphql.authorize
+(
+  table_name name PRIMARY KEY NOT NULL,
+  access_level integer NOT NULL
+);

@@ -14,13 +14,25 @@ const top = require("../helpers/top.js");
 const plv8 = require(top.data.plv8);
 const args = require(top.data.funcArgs.graphqlExecute);
 
-const { query, schema, userId } = args;
+const { query, userId } = args;
+let { schema } = args;
 
 let api = {};
 apiFunctions.map(f => api = { ...api, ...require(`../api/${f}.js`) });
 
 /*BEGIN*/
 const isAdmin = !userId && userId !== 0;
+const isAnonymous = userId <= 0;
+const isUser = userId > 0;
+
+if (!schema)
+{
+    schema = '';
+}
+else if (schema.length > 0)
+{
+    schema += '.';
+}
 
 const operators =
 {
@@ -37,6 +49,7 @@ const operators =
 const idField = 'id';
 const idPostfix = '_id';
 const aggPostfix = '_agg';
+const userField = 'account_id';
 
 const aggFunctions = ['max', 'min', 'avg', 'sum'];
 const aggFuncPrefix = (aggPostfix[0] === '_') ? '_' : '';
@@ -45,6 +58,10 @@ aggFunctions.map(x => aggDict[x + aggFuncPrefix] = `${x.toUpperCase()}($)`);
 aggDict['distinct' + aggFuncPrefix] = `array_agg(DISTINCT($))`;
 
 const aliases = plv8.execute('SELECT * FROM graphql.aliases;');
+
+const authInfo = isAdmin
+    ? []
+    : plv8.execute('SELECT * FROM graphql.authorize;');
 
 function distinct(value, index, self)
 {
@@ -220,7 +237,7 @@ function viewTable(selection, tableName, result, where, level)
             fields.push(`"${idField}"`);
         }
 
-        const query = `SELECT ${fields.join(", ")} FROM ${schema}."${tableName}" a${level} ${where}${sqlOperator}${qraphqlFilter}${orderBy}${limit};`;
+        const query = `SELECT ${fields.join(", ")} FROM ${schema}"${tableName}" a${level} ${where}${sqlOperator}${qraphqlFilter}${orderBy}${limit};`;
 
         plv8.elog(NOTICE, query);
 
@@ -244,7 +261,7 @@ function viewTable(selection, tableName, result, where, level)
                         const subResultOrdered = {};
 
                         const innerWhere = (level === 2 && ids.length > 6500)
-                            ? ` JOIN ${schema}."${tableName}" a${level} ON a${level}."${fkRow.column_name}"=a${level + 1}."${fkRow.foreign_column_name}" ${where}`
+                            ? ` JOIN ${schema}"${tableName}" a${level} ON a${level}."${fkRow.column_name}"=a${level + 1}."${fkRow.foreign_column_name}" ${where}`
                             : ` WHERE a${level + 1}."${fkRow.foreign_column_name}" IN(${ids.join(', ')})`;
 
                         viewTable(field, fkRow.foreign_table_name, subResult, innerWhere, level + 1);
@@ -281,7 +298,7 @@ function viewTable(selection, tableName, result, where, level)
                         : fkReverseRow.column_name;
 
                     const innerWhere =
-                        ` JOIN ${schema}."${tableName}" a${level} ON a${level}."${fkReverseRow.foreign_column_name}"=a${level + 1}."${reverse_column_name}" 
+                        ` JOIN ${schema}"${tableName}" a${level} ON a${level}."${fkReverseRow.foreign_column_name}"=a${level + 1}."${reverse_column_name}" 
                 ${where}${sqlOperator}${qraphqlFilter0}`;
 
                     if (limit.length > 0)
@@ -329,7 +346,7 @@ function viewTable(selection, tableName, result, where, level)
                 {
                     let aggResult = {};
                     let aggWhere =
-                        ` JOIN ${schema}."${tableName}" a${level} ON a${level}."${fkReverseRow.foreign_column_name}"=a${level + 1}."${fkReverseRow.column_name}" 
+                        ` JOIN ${schema}"${tableName}" a${level} ON a${level}."${fkReverseRow.foreign_column_name}"=a${level + 1}."${fkReverseRow.column_name}" 
                             ${where}${sqlOperator}${qraphqlFilter0}`;
 
                     if (limit.length > 0)
@@ -423,7 +440,7 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
         sqlOperator = (where.length > 0) ? ' AND' : ' WHERE';
     }
 
-    const aggQuery = `SELECT ${aggSelect}${fieldsSelect} FROM ${schema}."${tableName.substr(0, tableName.length - aggPostfix.length)}" a${level}
+    const aggQuery = `SELECT ${aggSelect}${fieldsSelect} FROM ${schema}"${tableName.substr(0, tableName.length - aggPostfix.length)}" a${level}
     ${where}${sqlOperator}${qraphqlFilter}${groupBy};`;
     plv8.elog(NOTICE, aggQuery);
 

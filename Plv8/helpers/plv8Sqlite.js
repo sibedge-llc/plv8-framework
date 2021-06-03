@@ -18,7 +18,11 @@ exports.execute = function (query)
 
     sqlite.connect(top.dbPath);
 
-    let ret = sqlite.run(query.replace('true', '1').replace('false', '0'));
+    let ret = sqlite.run(query
+        .replace('true', '1')
+        .replace('false', '0')
+        .replace('graphql.', 'graphql_'));
+
     console.log(ret);
     sqlite.close();
     return ret;
