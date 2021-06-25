@@ -5,3 +5,4 @@ node_modules/
 .vs/
 package-lock.json
 Plv8/.vscode
+Plv8/config/connectionString.js
