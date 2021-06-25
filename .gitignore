@@ -4,4 +4,4 @@ packages/
 node_modules/
 .vs/
 package-lock.json
-Plv8/config/postgres.js
+Plv8/.vscode
