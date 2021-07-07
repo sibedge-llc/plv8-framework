@@ -4,7 +4,7 @@ const testHelper = require(appRoot + '/helpers/testHelper.js');
 const top = require(appRoot + "/helpers/top.js");
 const auth = require(appRoot + "/api/accessLevels.js");
 
-test('Single graphql query test', () =>
+test.skip('Single graphql query test', () =>
 {
     const dbPath = appRoot + testHelper.getSqliteFileName(__filename);
     top.dbPath = dbPath;
