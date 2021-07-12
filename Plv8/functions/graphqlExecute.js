@@ -86,7 +86,11 @@ function getFilter(args, level)
             .filter(x => x !== undefined)
             .map(filterVal =>
             {
-                if (filterVal.value.kind !== 'ObjectValue')
+                if (filterVal.value.kind === 'NullValue')
+                {
+                    return `a${level}."${filterVal.name.value}" IS NULL`;
+                }
+                else if (filterVal.value.kind !== 'ObjectValue')
                 {
                     return (filterVal.value.kind === 'StringValue')
                         ? `a${level}."${filterVal.name.value}"='${filterVal.value.value}'`

@@ -15,15 +15,12 @@ test('Single graphql query test', () =>
         company_type: auth.accessLevels.ANY_READ
     };
 
-    console.log(setup.setAuthSql(authLevels));
-
     sqlite.connect(dbPath);
     sqlite.run(setup.createSql());
     sqlite.run(setup.setAuthSql(authLevels));
     sqlite.close();
 
     const result = testHelper.runSqlite('graphqlExecute', __filename);
-    console.log(result.data.company_type);
 
     sqlite.connect(dbPath);
 

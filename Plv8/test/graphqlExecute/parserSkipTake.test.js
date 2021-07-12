@@ -1,7 +1,7 @@
 const appRoot = require('app-root-path');
 const testHelper = require(appRoot + '/helpers/testHelper.js');
 
-test('Mock, aggregate operators should be used', () =>
+test('Mock, LIMIT/OFFSET should be used', () =>
 {
     const plv8 = require(appRoot + '/helpers/plv8Mock.js');
 
