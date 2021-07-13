@@ -5,7 +5,7 @@ const top = require(appRoot + "/helpers/top.js");
 
 test('Snake-case table, insert data test', () =>
 {
-    const dbPath = appRoot + testHelper.getSqliteFileName(__filename);
+    const dbPath = testHelper.getSqliteFileName(__filename);
     top.dbPath = dbPath;
 
     sqlite.connect(dbPath);

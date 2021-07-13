@@ -41,7 +41,8 @@ function getDataFilename(testFileName, postfix = "data.js")
     return `/test${dataPath.replace('.test.js', '.' + postfix)}`;
 }
 
-exports.getSqliteFileName = testFileName => "/sqlite/" + getDataFilename(testFileName, "test.db")
-    .split(/[\\/]/).reverse()[0];
+exports.getSqliteFileName = testFileName => "file:" + getDataFilename(testFileName, "test.db")
+    .split(/[\\/]/).reverse()[0]
+        + "?mode=memory&cache=shared";
 
 exports.getDataFilename = getDataFilename;

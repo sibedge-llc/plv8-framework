@@ -6,7 +6,7 @@ const auth = require(appRoot + "/api/accessLevels.js");
 
 test.skip('Single graphql query test', () =>
 {
-    const dbPath = appRoot + testHelper.getSqliteFileName(__filename);
+    const dbPath = testHelper.getSqliteFileName(__filename);
     top.dbPath = dbPath;
 
     const setup = require(__dirname + '/authCommonSetup.js');

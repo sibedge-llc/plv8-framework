@@ -6,7 +6,7 @@ const sqliteHelper = require(appRoot + "/helpers/plv8Sqlite.js");
 
 test('Single entity insert data test', () =>
 {
-    const dbPath = appRoot + testHelper.getSqliteFileName(__filename);
+    const dbPath = testHelper.getSqliteFileName(__filename);
     top.dbPath = dbPath;
 
     sqlite.connect(dbPath);
