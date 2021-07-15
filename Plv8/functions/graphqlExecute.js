@@ -253,7 +253,7 @@ function viewTable(selection, tableName, result, where, level)
             {
                 if (field.name.value.toLowerCase() === fkRow.column_name.substr(0, fkRow.column_name.length - idPostfix.length).toLowerCase())
                 {
-                    const ids = items.map(a => a[fkRow.column_name]).filter(item => item !== null).filter(distinct);
+                    let ids = items.map(a => a[fkRow.column_name]).filter(item => item !== null).filter(distinct);
                     if (ids.length > 0)
                     {
                         if (typeof ids[0] === 'string')
@@ -301,7 +301,7 @@ function viewTable(selection, tableName, result, where, level)
                         ? alias.column_name
                         : fkReverseRow.column_name;
 
-                    const innerWhere =
+                    let innerWhere =
                         ` JOIN ${schema}"${tableName}" a${level} ON a${level}."${fkReverseRow.foreign_column_name}"=a${level + 1}."${reverse_column_name}" 
                 ${where}${sqlOperator}${qraphqlFilter0}`;
 
@@ -309,7 +309,7 @@ function viewTable(selection, tableName, result, where, level)
                     {
                         sqlOperator = (where.length > 0) || (qraphqlFilter0.length > 0)
                             ? ' AND' : ' WHERE';
-                        const ids = items.map(a => a[idField]);
+                        let ids = items.map(a => a[idField]);
 
                         if (typeof ids[0] === 'string')
                         {
@@ -357,7 +357,7 @@ function viewTable(selection, tableName, result, where, level)
                     {
                         sqlOperator = (where.length > 0) || (qraphqlFilter0.length > 0)
                             ? ' AND' : ' WHERE';
-                            const ids = items.map(a => a[idField]);
+                            let ids = items.map(a => a[idField]);
 
                         if (typeof ids[0] === 'string')
                         {
