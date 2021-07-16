@@ -75,17 +75,32 @@ String.prototype.trim = function ()
     return this.replace(/^\s+|\s+$/g, "");
 };
 
-function getFilter(args, level)
+function canBeRelated(columnName)
 {
+    return columnName.length > idPostfix.length;
+}
+
+function getRelatedName(columnName)
+{
+    return columnName.substr(0, columnName.length - idPostfix.length);
+}
+
+function getFilter(args, level, fkRows)
+{
+    const relatedNames = fkRows
+       .filter(x => canBeRelated(x.column_name))
+       .map(x => getRelatedName(x.column_name));
+
     let qraphqlFilter = '';
 
     args = args.filter(x => x.name.value === 'filter');
-    if (args.length > 0)
+
+    if (args.length)
     {
-        const filter = args[0];
+        const [filter] = args;
 
         const filterParts = filter.value.fields
-            .filter(x => x !== undefined)
+            .filter(x => x !== undefined && !relatedNames.includes(x.name.value))
             .map(filterVal =>
             {
                 if (filterVal.value.kind === 'NullValue')
@@ -127,6 +142,28 @@ function getFilter(args, level)
     return qraphqlFilter;
 }
 
+function getRelationFilter(args, fkRows)
+{
+    const relatedNames = fkRows
+       .filter(x => canBeRelated(x.column_name))
+       .map(x => getRelatedName(x.column_name));
+
+    const ret = {};
+
+    args = args.filter(x => x.name.value === 'filter');
+
+    if (args.length)
+    {
+        const [filter] = args;
+
+        const filterParts = filter.value.fields
+            .filter(x => x !== undefined && relatedNames.includes(x.name.value))
+            .map(x => ret[x.name.value] = x.value.value);
+    }
+
+    return ret;
+}
+
 function viewTable(selection, tableName, result, where, level)
 {
     const table = selection.selectionSet;
@@ -137,10 +174,10 @@ function viewTable(selection, tableName, result, where, level)
 
     const fkRowsAll = plv8.execute(fkQuery);
 
-    const fkRows = fkRowsAll.filter(x => x.column_name.length > idPostfix.length).filter(function (item)
+    const fkRows = fkRowsAll.filter(x => canBeRelated(x.column_name)).filter(function (item)
     {
         return item.table_name === tableName
-            && tableKeys.includes(item.column_name.substr(0, item.column_name.length - idPostfix.length));
+            && tableKeys.includes(getRelatedName(item.column_name));
     });
 
     const fkFields = fkRows.map(function (a, index) { return a.column_name });
@@ -166,7 +203,7 @@ function viewTable(selection, tableName, result, where, level)
     //-- grapghql filters
     if (selection.arguments !== undefined)
     {
-        qraphqlFilter = getFilter(selection.arguments, level);
+        qraphqlFilter = getFilter(selection.arguments, level, fkRows);
         if (level === 1)
         {
             qraphqlFilter0 = qraphqlFilter;
@@ -249,11 +286,11 @@ function viewTable(selection, tableName, result, where, level)
 
         items = plv8.execute(query);
 
-        fkRows.filter(x => x.column_name.length > idPostfix.length).map(fkRow =>
+        fkRows.filter(x => canBeRelated(x.column_name)).map(fkRow =>
         {
             table.selections.map(field =>
             {
-                if (field.name.value.toLowerCase() === fkRow.column_name.substr(0, fkRow.column_name.length - idPostfix.length).toLowerCase())
+                if (field.name.value.toLowerCase() === getRelatedName(fkRow.column_name).toLowerCase())
                 {
                     let ids = items.map(a => a[fkRow.column_name]).filter(item => item !== null).filter(distinct);
                     if (ids.length > 0)
@@ -280,6 +317,14 @@ function viewTable(selection, tableName, result, where, level)
                         }
 
                         items.map(item => item[field.name.value] = subResultOrdered[item[fkRow.column_name]]);
+
+                        // Relation objects filter by existing
+                        const relationFilter = getRelationFilter(selection.arguments, fkRows);
+                        
+                        Object.keys(relationFilter)
+                            .map(k => items = items
+                                .filter(x => (x[k] && relationFilter[k])
+                                    || (!x[k] && !relationFilter[k])));
                     }
                 }
             });
@@ -443,7 +488,7 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
     const fieldsSelect = Object.keys(fields).map(k => `${fields[k]} AS "${k}"`).join(', ');
 
     const qraphqlFilter = (selection.arguments !== undefined)
-        ? getFilter(selection.arguments, level)
+        ? getFilter(selection.arguments, level, [])
         : '';
 
     let sqlOperator = '';
