@@ -36,6 +36,8 @@ else if (schema.length > 0)
 
 const operators =
 {
+    equals: '=',
+    notEquals: '!=',
     less: '<',
     greater: '>',
     lessOrEquals: '<=',
@@ -270,7 +272,13 @@ function viewTable(selection, tableName, result, where, level)
 
                         viewTable(field, fkRow.foreign_table_name, subResult, innerWhere, level + 1);
 
-                        subResult[fkRow.foreign_table_name].map(a => subResultOrdered[a[fkRow.foreign_column_name]] = a);
+                        const subResultPart = subResult[fkRow.foreign_table_name];
+
+                        if (subResultPart)
+                        {
+                            subResultPart.map(a => subResultOrdered[a[fkRow.foreign_column_name]] = a);
+                        }
+
                         items.map(item => item[field.name.value] = subResultOrdered[item[fkRow.column_name]]);
                     }
                 }
