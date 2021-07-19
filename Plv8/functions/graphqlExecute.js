@@ -65,6 +65,22 @@ const authInfo = isAdmin
     ? []
     : plv8.execute('SELECT * FROM graphql.authorize;');
 
+const fkData = {};
+
+function getFkData(tableName)
+{
+    if (tableName in fkData)
+    {
+        return fkData[tableName];
+    }
+
+    const fkQuery = `SELECT * FROM graphql.schema_foreign_keys WHERE table_name='${tableName}' OR foreign_table_name='${tableName}';`;
+    const fkRowsAll = plv8.execute(fkQuery);
+
+    fkData[tableName] = fkRowsAll;
+    return fkRowsAll;
+}
+
 function distinct(value, index, self)
 {
     return self.indexOf(value) === index;
@@ -164,15 +180,49 @@ function getRelationFilter(args, fkRows)
     return ret;
 }
 
+function processInheritFilters(selection, fkRows, otherFilter, level)
+{
+    const table = selection.selectionSet;
+
+    const ret = {
+        relationFilter: getRelationFilter(selection.arguments, fkRows),
+        relatableFkRows: fkRows.filter(x => canBeRelated(x.column_name))
+    };
+
+    ret.relationFilterKeys = Object.keys(ret.relationFilter);
+    ret.relFilter = '';
+    ret.relWhere = '';
+   
+    ret.relationFilterKeys
+        .filter(x => ret.relationFilter[x])
+        .map(x =>
+        {
+            const [fkRow] = ret.relatableFkRows
+                .filter(fkRow => getRelatedName(fkRow.column_name).toLowerCase() === x.toLowerCase());
+
+            const relOperator = (otherFilter.length || relFilter.length) ? ' AND' : '';
+            ret.relFilter += ` JOIN ${schema}"${fkRow.foreign_table_name}" a${level + 1} ON a${level}."${fkRow.column_name}"=a${level + 1}."${fkRow.foreign_column_name}"`;
+
+            const [selectionField] = table.selections
+                .filter(field => field.name.value.toLowerCase() === x.toLowerCase());
+            
+            const relGraphqlFilter = getFilter(selectionField.arguments, level + 1, fkRows);
+
+            if (relGraphqlFilter.length)
+            {
+                ret.relWhere += `${relOperator}${relGraphqlFilter}`;
+            }
+        });
+
+    return ret;
+}
+
 function viewTable(selection, tableName, result, where, level)
 {
     const table = selection.selectionSet;
     const tableKeys = table.selections.map(x => x.name.value);
 
-    const fkQuery = `SELECT * FROM graphql.schema_foreign_keys WHERE table_name='${tableName}' OR foreign_table_name='${tableName}';`;
-
-    const fkRowsAll = plv8.execute(fkQuery);
-
+    const fkRowsAll = getFkData(tableName);
     const fkRows = fkRowsAll.filter(x => canBeRelated(x.column_name)).filter(function (item)
     {
         return item.table_name === tableName
@@ -273,35 +323,8 @@ function viewTable(selection, tableName, result, where, level)
         }
 
         // Relation objects filter by existing
-        const relationFilter = getRelationFilter(selection.arguments, fkRows);
-        const relationFilterKeys = Object.keys(relationFilter);
-
-        const relatableFkRows = fkRows.filter(x => canBeRelated(x.column_name));
-
         let query = `SELECT ${fields.join(", ")} FROM ${schema}"${tableName}" a${level}`;
-        let relFilter = '';
-        let relWhere = '';
-       
-        relationFilterKeys
-            .filter(x => relationFilter[x])
-            .map(x =>
-            {
-                const [fkRow] = relatableFkRows
-                    .filter(fkRow => getRelatedName(fkRow.column_name).toLowerCase() === x.toLowerCase());
-
-                const relOperator = (qraphqlFilter.length || relFilter.length) ? ' AND' : '';
-                relFilter += ` JOIN ${schema}"${fkRow.foreign_table_name}" a${level + 1} ON a${level}."${fkRow.column_name}"=a${level + 1}."${fkRow.foreign_column_name}"`;
-
-                const [selectionField] = table.selections
-                    .filter(field => field.name.value.toLowerCase() === x.toLowerCase());
-                
-                const relGraphqlFilter = getFilter(selectionField.arguments, level + 1, fkRows);
-
-                if (relGraphqlFilter.length)
-                {
-                    relWhere += `${relOperator}${relGraphqlFilter}`;
-                }
-            });
+        const inheritFilters = processInheritFilters(selection, fkRows, qraphqlFilter, level);
 
         let sqlOperator = '';
         if (qraphqlFilter.length || relFilter.length)
@@ -309,12 +332,12 @@ function viewTable(selection, tableName, result, where, level)
             sqlOperator = where.length ? ' AND' : ' WHERE';
         }
 
-        query += `${relFilter} ${where}${sqlOperator}${qraphqlFilter}${relWhere}${orderBy}${limit}`;
+        query += `${inheritFilters.relFilter} ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${orderBy}${limit}`;
 
         plv8.elog(NOTICE, query);
         items = plv8.execute(query);
 
-        relatableFkRows.map(fkRow =>
+        inheritFilters.relatableFkRows.map(fkRow =>
         {
             table.selections.map(field =>
             {
@@ -348,13 +371,13 @@ function viewTable(selection, tableName, result, where, level)
 
                         items.map(item => item[field.name.value] = subResultOrdered[item[fkRow.column_name]]);
                        
-                        const currentRelations = relationFilterKeys
+                        const currentRelations = inheritFilters.relationFilterKeys
                             .filter(x => x.toLowerCase() === fieldNameLower);
 
                         if (currentRelations.length)
                         {
                             const [relation] = currentRelations;
-                            const relationValue = relationFilter[relation];
+                            const relationValue = inheritFilters.relationFilter[relation];
 
                             items = items.filter(x => (x[relation] && relationValue)
                                 || (!x[relation] && !relationValue));
@@ -521,18 +544,23 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
     const groupBy = (aggColumn.length > 0) ? ` GROUP BY ${aggColumn}` : '';
     const fieldsSelect = Object.keys(fields).map(k => `${fields[k]} AS "${k}"`).join(', ');
 
+    const realTableName = tableName.substr(0, tableName.length - aggPostfix.length);
+    const fkRowsAll = getFkData(realTableName);
+
     const qraphqlFilter = (selection.arguments !== undefined)
-        ? getFilter(selection.arguments, level, [])
+        ? getFilter(selection.arguments, level, fkRowsAll)
         : '';
 
+    const inheritFilters = processInheritFilters(selection, fkRowsAll, qraphqlFilter, level);
+
     let sqlOperator = '';
-    if (qraphqlFilter.length > 0)
+    if (qraphqlFilter.length || relFilter.length)
     {
-        sqlOperator = (where.length > 0) ? ' AND' : ' WHERE';
+        sqlOperator = where.length ? ' AND' : ' WHERE';
     }
 
-    const aggQuery = `SELECT ${aggSelect}${fieldsSelect} FROM ${schema}"${tableName.substr(0, tableName.length - aggPostfix.length)}" a${level}
-    ${where}${sqlOperator}${qraphqlFilter}${groupBy};`;
+    const aggQuery = `SELECT ${aggSelect}${fieldsSelect} FROM ${schema}"${realTableName}" a${level} ${inheritFilters.relFilter}
+        ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${groupBy};`;
     plv8.elog(NOTICE, aggQuery);
 
     return plv8.execute(aggQuery);
