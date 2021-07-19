@@ -270,12 +270,22 @@ function viewTable(selection, tableName, result, where, level)
         if (orderArgs.length > 0)
         {
             const order = orderArgs[0];
-            orderBy = ` ORDER BY a${level}."${order.value.value}"`;
+            
+            const additionalOrder = order.value.value !== idField
+                && rows.map(x => x.column_name).includes(idField)
+                    ? `, a${level}."${idField}"` : "";
+
+            orderBy = ` ORDER BY a${level}."${order.value.value}"${additionalOrder}`;
         }
         else if (orderDescArgs.length > 0)
         {
             const orderDesc = orderDescArgs[0];
-            orderBy = ` ORDER BY a${level}."${orderDesc.value.value}" DESC`;
+            
+            const additionalOrder = orderDesc.value.value !== idField
+                && rows.map(x => x.column_name).includes(idField)
+                ? `, a${level}."${idField}"` : "";
+
+            orderBy = ` ORDER BY a${level}."${orderDesc.value.value}" DESC${additionalOrder}`;
         }
 
         const skipArgs = selection.arguments.filter(x => x.name.value === 'skip');
