@@ -12,15 +12,14 @@ test('Mock, LIMIT/OFFSET should be used', () =>
     const sql = plv8.execute.mock.calls[3][0];   
     const ast = testHelper.astifySql(sql);
 
-    expect(ast).toHaveLength(1);
-    expect(ast[0].type).toBe("select");
+    expect(ast.type).toBe("select");
 
-    const columns = ast[0].columns;
+    const columns = ast.columns;
     
     expect(columns).toHaveLength(1);
     expect(columns[0].expr.value).toBe("id");
 
-    const limit = ast[0].limit;
+    const limit = ast.limit;
     expect(limit.seperator).toBe("offset");
 
     expect(limit.value).toHaveLength(2);

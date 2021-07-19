@@ -170,7 +170,6 @@ function viewTable(selection, tableName, result, where, level)
     const tableKeys = table.selections.map(x => x.name.value);
 
     const fkQuery = `SELECT * FROM graphql.schema_foreign_keys WHERE table_name='${tableName}' OR foreign_table_name='${tableName}';`;
-    //--plv8.elog(NOTICE, fkQuery);
 
     const fkRowsAll = plv8.execute(fkQuery);
 
@@ -187,7 +186,6 @@ function viewTable(selection, tableName, result, where, level)
     const sysQuery = "SELECT column_name FROM graphql.schema_columns WHERE "
         + `table_name='${tableName}' AND column_name IN('${allFieldsFiltered.join("', '")}');`;
 
-    //--plv8.elog(NOTICE, sysQuery);
     const usedAliases = aliases.filter(a => allFieldsFiltered.includes(a.alias));
 
     const rows = plv8.execute(sysQuery);
@@ -246,12 +244,6 @@ function viewTable(selection, tableName, result, where, level)
     }
 
     // --------------- Main part -----------------
-    let sqlOperator = '';
-    if (qraphqlFilter.length > 0)
-    {
-        sqlOperator = (where.length > 0) ? ' AND' : ' WHERE';
-    }
-
     if (rows.length >= 0)
     {
         const fields = (usedAliases.length > 0)
@@ -280,17 +272,55 @@ function viewTable(selection, tableName, result, where, level)
             fields.push(`"${idField}"`);
         }
 
-        const query = `SELECT ${fields.join(", ")} FROM ${schema}"${tableName}" a${level} ${where}${sqlOperator}${qraphqlFilter}${orderBy}${limit};`;
+        // Relation objects filter by existing
+        const relationFilter = getRelationFilter(selection.arguments, fkRows);
+        const relationFilterKeys = Object.keys(relationFilter);
+
+        const relatableFkRows = fkRows.filter(x => canBeRelated(x.column_name));
+
+        let query = `SELECT ${fields.join(", ")} FROM ${schema}"${tableName}" a${level}`;
+        let relFilter = '';
+        let relWhere = '';
+       
+        relationFilterKeys
+            .filter(x => relationFilter[x])
+            .map(x =>
+            {
+                const [fkRow] = relatableFkRows
+                    .filter(fkRow => getRelatedName(fkRow.column_name).toLowerCase() === x.toLowerCase());
+
+                const relOperator = (qraphqlFilter.length || relFilter.length) ? ' AND' : '';
+                relFilter += ` JOIN ${schema}"${fkRow.foreign_table_name}" a${level + 1} ON a${level}."${fkRow.column_name}"=a${level + 1}."${fkRow.foreign_column_name}"`;
+
+                const [selectionField] = table.selections
+                    .filter(field => field.name.value.toLowerCase() === x.toLowerCase());
+                
+                const relGraphqlFilter = getFilter(selectionField.arguments, level + 1, fkRows);
+
+                if (relGraphqlFilter.length)
+                {
+                    relWhere += `${relOperator}${relGraphqlFilter}`;
+                }
+            });
+
+        let sqlOperator = '';
+        if (qraphqlFilter.length || relFilter.length)
+        {
+            sqlOperator = where.length ? ' AND' : ' WHERE';
+        }
+
+        query += `${relFilter} ${where}${sqlOperator}${qraphqlFilter}${relWhere}${orderBy}${limit}`;
 
         plv8.elog(NOTICE, query);
-
         items = plv8.execute(query);
 
-        fkRows.filter(x => canBeRelated(x.column_name)).map(fkRow =>
+        relatableFkRows.map(fkRow =>
         {
             table.selections.map(field =>
             {
-                if (field.name.value.toLowerCase() === getRelatedName(fkRow.column_name).toLowerCase())
+                const fieldNameLower = field.name.value.toLowerCase();
+
+                if (fieldNameLower === getRelatedName(fkRow.column_name).toLowerCase())
                 {
                     let ids = items.map(a => a[fkRow.column_name]).filter(item => item !== null).filter(distinct);
                     if (ids.length > 0)
@@ -317,14 +347,18 @@ function viewTable(selection, tableName, result, where, level)
                         }
 
                         items.map(item => item[field.name.value] = subResultOrdered[item[fkRow.column_name]]);
+                       
+                        const currentRelations = relationFilterKeys
+                            .filter(x => x.toLowerCase() === fieldNameLower);
 
-                        // Relation objects filter by existing
-                        const relationFilter = getRelationFilter(selection.arguments, fkRows);
-                        
-                        Object.keys(relationFilter)
-                            .map(k => items = items
-                                .filter(x => (x[k] && relationFilter[k])
-                                    || (!x[k] && !relationFilter[k])));
+                        if (currentRelations.length)
+                        {
+                            const [relation] = currentRelations;
+                            const relationValue = relationFilter[relation];
+
+                            items = items.filter(x => (x[relation] && relationValue)
+                                || (!x[relation] && !relationValue));
+                        }
                     }
                 }
             });
