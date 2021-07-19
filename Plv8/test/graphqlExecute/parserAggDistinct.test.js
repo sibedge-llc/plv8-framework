@@ -7,9 +7,11 @@ test('Mock, array_agg with DISTINCT should be used', () =>
 
     testHelper.runMock('graphqlExecute', __filename);
 
-    expect(plv8.execute.mock.calls.length).toBe(2);
+    console.log(plv8.execute.mock.calls);
 
-    const sql = plv8.execute.mock.calls[1][0];   
+    expect(plv8.execute.mock.calls.length).toBe(3);
+
+    const sql = plv8.execute.mock.calls[2][0];
 
     expect(sql).toContain('array_agg');
     expect(sql).toContain('DISTINCT');

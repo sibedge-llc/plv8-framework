@@ -172,7 +172,7 @@ function getRelationFilter(args, fkRows)
     {
         const [filter] = args;
 
-        const filterParts = filter.value.fields
+        filter.value.fields
             .filter(x => x !== undefined && relatedNames.includes(x.name.value))
             .map(x => ret[x.name.value] = x.value.value);
     }

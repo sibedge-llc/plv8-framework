@@ -7,9 +7,9 @@ test('Mock, aggregate operators should be used', () =>
 
     testHelper.runMock('graphqlExecute', __filename);
 
-    expect(plv8.execute.mock.calls.length).toBe(2);
+    expect(plv8.execute.mock.calls.length).toBe(3);
 
-    const sql = plv8.execute.mock.calls[1][0];   
+    const sql = plv8.execute.mock.calls[2][0];
     const ast = testHelper.astifySql(sql);
 
     expect(ast).toHaveLength(1);
