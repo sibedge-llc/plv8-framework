@@ -114,38 +114,44 @@ function getFilter(args, level, fkRows)
     if (args.length)
     {
         const [filter] = args;
+        let filterParts = [];
 
-        const filterParts = filter.value.fields
+        filter.value.fields
             .filter(x => x !== undefined && !relatedNames.includes(x.name.value))
             .map(filterVal =>
             {
                 if (filterVal.value.kind === 'NullValue')
                 {
-                    return `a${level}."${filterVal.name.value}" IS NULL`;
+                    filterParts.push(`a${level}."${filterVal.name.value}" IS NULL`);
                 }
                 else if (filterVal.value.kind !== 'ObjectValue')
                 {
-                    return (filterVal.value.kind === 'StringValue')
+                    filterParts.push((filterVal.value.kind === 'StringValue')
                         ? `a${level}."${filterVal.name.value}"='${filterVal.value.value}'`
-                        : `a${level}."${filterVal.name.value}"=${filterVal.value.value}`;
+                        : `a${level}."${filterVal.name.value}"=${filterVal.value.value}`);
                 }
                 else
                 {
-                    const value1 = (filterVal.value.fields[0].value.kind === 'StringValue')
-                        ? ((filterVal.value.fields[0].name.value === 'contains' || filterVal.value.fields[0].name.value === 'notContains')
-                            ? `'%${filterVal.value.fields[0].value.value}%'`
-                            : `'${filterVal.value.fields[0].value.value}'`)
-                        : filterVal.value.fields[0].value.value;
-
-                        const operator = operators[filterVal.value.fields[0].name.value];
-                    
-                    if (operator === operators.arrayContains
-                           || operator === operators.arrayNotContains)
+                    filterVal.value.fields.map(filterField =>
                     {
-                        return `${value1}${operator}(a${level}."${filterVal.name.value}")`;
-                    }
+                        const value1 = (filterField.value.kind === 'StringValue')
+                            ? ((filterField.name.value === 'contains' || filterField.name.value === 'notContains')
+                                ? `'%${filterField.value.value}%'`
+                                : `'${filterField.value.value}'`)
+                            : filterField.value.value;
 
-                    return `a${level}."${filterVal.name.value}"${operator}${value1}`;
+                            const operator = operators[filterField.name.value];
+
+                        if (operator === operators.arrayContains
+                               || operator === operators.arrayNotContains)
+                        {
+                            filterParts.push(`${value1}${operator}(a${level}."${filterVal.name.value}")`);
+                        }
+                        else
+                        {
+                            filterParts.push(`a${level}."${filterVal.name.value}"${operator}${value1}`);
+                        }
+                    });
                 }
             });
 
