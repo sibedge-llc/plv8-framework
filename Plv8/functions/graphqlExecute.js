@@ -337,7 +337,7 @@ function viewTable(selection, tableName, result, where, level)
         const inheritFilters = processInheritFilters(selection, fkRows, qraphqlFilter, level);
 
         let sqlOperator = '';
-        if (qraphqlFilter.length || relFilter.length)
+        if (qraphqlFilter.length || inheritFilters.relFilter.length)
         {
             sqlOperator = where.length ? ' AND' : ' WHERE';
         }
@@ -564,7 +564,7 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
     const inheritFilters = processInheritFilters(selection, fkRowsAll, qraphqlFilter, level);
 
     let sqlOperator = '';
-    if (qraphqlFilter.length || relFilter.length)
+    if (qraphqlFilter.length || inheritFilters.relFilter.length)
     {
         sqlOperator = where.length ? ' AND' : ' WHERE';
     }
