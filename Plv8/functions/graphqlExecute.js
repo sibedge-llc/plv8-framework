@@ -537,10 +537,17 @@ function viewTable(selection, tableName, result, where, level)
 function executeAgg(selection, tableName, result, where, level, aggColumn)
 {
     const fields = {};
+    let useKey = false;
+
     selection.selectionSet.selections.map(s =>
     {
         const x = s.name.value;
-        if (x === 'count')
+
+        if (x === 'key')
+        {
+            useKey = true;
+        }
+        else if (x === 'count')
         {
             fields.count = 'COUNT(*)';
         }
@@ -579,7 +586,18 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
         ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${groupBy};`;
     plv8.elog(NOTICE, aggQuery);
 
-    return plv8.execute(aggQuery);
+    const ret = plv8.execute(aggQuery);
+
+    if (useKey)
+    {
+        ret.map(x =>
+        {
+            x.key = x[aggColumn];
+            delete x[aggColumn];
+        });
+    }
+
+    return ret;
 }
 
 const result = {};
@@ -589,7 +607,16 @@ api.gqlquery(query).definitions[0].selectionSet.selections.map(x =>
     if (x.name.value.length > aggPostfix.length
         && x.name.value.substr(x.name.value.length - aggPostfix.length) === aggPostfix)
     {
-        result[x.name.value] = executeAgg(x, x.name.value, result, '', 1, '')[0];
+        const groupArgs = x.arguments.filter(x => x.name.value === 'groupBy');
+        let groupBy = '';
+
+        if (groupArgs.length > 0)
+        {
+            const [group] = groupArgs;
+            groupBy = group.value.value;
+        }
+
+        result[x.name.value] = executeAgg(x, x.name.value, result, '', 1, groupBy);
     }
     else
     {

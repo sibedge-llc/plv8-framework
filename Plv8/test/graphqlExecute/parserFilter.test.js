@@ -19,9 +19,6 @@ test('Mock, Two filder conditions should be used', () =>
     expect(where.type).toBe("binary_expr");
     expect(where.operator).toBe("AND");
 
-    console.log(where.left);
-    console.log(where.right);
-
     expect(where.left.operator).toBe(">=");
     expect(where.left.left.type).toBe("column_ref");
     expect(where.left.left.column).toBe("weight");
