@@ -6,4 +6,6 @@ exports.query = `query {
   }
 `;
 
-exports.userId = 0;
+exports.user = {
+    isAnonymous: true
+};

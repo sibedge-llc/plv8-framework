@@ -4,7 +4,7 @@ apiFunctions = ['gqlquery', 'accessLevels'];
 
 /*SQL
 DROP FUNCTION IF EXISTS graphql.execute;
-CREATE OR REPLACE FUNCTION graphql.execute(query text, schema text, "userId" integer)
+CREATE OR REPLACE FUNCTION graphql.execute(query text, schema text, user jsonb)
 RETURNS JSONB
 SQL*/
 
@@ -14,16 +14,18 @@ const top = require("../helpers/top.js");
 const plv8 = require(top.data.plv8);
 const args = require(top.data.funcArgs.graphqlExecute);
 
-const { query, userId } = args;
+const { query, user } = args;
 let { schema } = args;
 
 let api = {};
 apiFunctions.map(f => api = { ...api, ...require(`../api/${f}.js`) });
 
 /*BEGIN*/
-const isAdmin = !userId && userId !== 0;
-const isAnonymous = userId <= 0;
+const isAdmin = !user || !user.isAnonymous && !user.userId;
+const isAnonymous = !isAdmin && user.isAnonymous;
+const userId = !isAdmin ? user.userId : null;
 const isUser = userId > 0;
+const defaultAuthKey = '$default';
 
 if (!schema)
 {
@@ -225,6 +227,34 @@ function processInheritFilters(selection, fkRows, otherFilter, level)
 
 function viewTable(selection, tableName, result, where, level)
 {
+    // Authorize
+    let readAllowed = isAdmin;
+
+    if (isAnonymous)
+    {
+        let tableLevels = authInfo.filter(x => x.table_name === tableName);
+        if (!tableLevels.length)
+        {
+            tableLevels = authInfo.filter(x => x.table_name === defaultAuthKey);
+        }
+
+        if (!tableLevels.length)
+        {
+            readAllowed = true;
+        }
+        else
+        {
+            const [tableLevel] = tableLevels;
+            readAllowed = tableLevel.access_level & api.accessLevels.ANY_READ;
+        }
+    }
+
+    if (!readAllowed)
+    {
+        result[tableName] = [];
+        return;
+    }
+
     const table = selection.selectionSet;
     const tableKeys = table.selections.map(x => x.name.value);
 
@@ -528,10 +558,13 @@ function viewTable(selection, tableName, result, where, level)
         });
     }
 
-    if (items.length > 0)
+    if (items.length > 0 && idFilterValue >= 0)
     {
-        result[tableName] = (idFilterValue >= 0) ? items[0] : items;
+        result[tableName] = items[0];
+        return;
     }
+
+    result[tableName] = items;
 }
 
 function executeAgg(selection, tableName, result, where, level, aggColumn)

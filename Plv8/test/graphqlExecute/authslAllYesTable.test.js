@@ -21,12 +21,10 @@ test('Single graphql query test', () =>
     sqlite.close();
 
     const result = testHelper.runSqlite('graphqlExecute', __filename);
-
-    sqlite.connect(dbPath);
-
-    let items = sqlite.run(`SELECT * FROM account;`);
+    const items = result.data.company_type;
     expect(items.length).toBe(2);
 
+    sqlite.connect(dbPath);
     sqlite.run(setup.dropSql());
     sqlite.close();
 });

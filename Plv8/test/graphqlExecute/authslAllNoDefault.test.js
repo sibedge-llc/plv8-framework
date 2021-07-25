@@ -4,7 +4,7 @@ const testHelper = require(appRoot + '/helpers/testHelper.js');
 const top = require(appRoot + "/helpers/top.js");
 const auth = require(appRoot + "/api/accessLevels.js");
 
-test.skip('Single graphql query test', () =>
+test('Single graphql query test', () =>
 {
     const dbPath = testHelper.getSqliteFileName(__filename);
     top.dbPath = dbPath;
@@ -20,13 +20,10 @@ test.skip('Single graphql query test', () =>
     sqlite.close();
 
     const result = testHelper.runSqlite('graphqlExecute', __filename);
-    console.log(result.data.company_type);
-
-    sqlite.connect(dbPath);
-
-    let items = sqlite.run(`SELECT * FROM account;`);
+    const items = result.data.company_type;
     expect(items.length).toBe(0);
 
+    sqlite.connect(dbPath);
     sqlite.run(setup.dropSql());
     sqlite.close();
 });
