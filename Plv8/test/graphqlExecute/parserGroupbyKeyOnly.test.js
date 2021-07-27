@@ -18,13 +18,9 @@ test('Mock, Group by "role" should be used', () =>
     expect(groupby.type).toBe("column_ref");
     expect(groupby.column).toBe("role");
 
-    expect(ast[0].columns.length).toBe(2);
+    expect(ast[0].columns.length).toBe(1);
 
     const roleExpr = ast[0].columns[0].expr;
     expect(roleExpr.type).toBe("column_ref");
     expect(roleExpr.column).toBe("role");
-
-    const cntExpr = ast[0].columns[1].expr;
-    expect(cntExpr.type).toBe("aggr_func");
-    expect(cntExpr.name).toBe("COUNT");
 });

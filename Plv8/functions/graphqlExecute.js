@@ -4,7 +4,7 @@ apiFunctions = ['gqlquery', 'accessLevels'];
 
 /*SQL
 DROP FUNCTION IF EXISTS graphql.execute;
-CREATE OR REPLACE FUNCTION graphql.execute(query text, schema text, user jsonb)
+CREATE OR REPLACE FUNCTION graphql.execute(query text, schema text, "user" jsonb)
 RETURNS JSONB
 SQL*/
 
@@ -152,6 +152,86 @@ function getFilter(args, level, fkRows)
                         else
                         {
                             filterParts.push(`a${level}."${filterVal.name.value}"${operator}${value1}`);
+                        }
+                    });
+                }
+            });
+
+        if (filterParts.length > 0)
+        {
+            qraphqlFilter = ' ' + filterParts.join(' AND ');
+        }
+    }
+
+    return qraphqlFilter;
+}
+
+function getAggFieldSql(field)
+{
+    if (field === 'count')
+    {
+        return {
+            func: 'COUNT(*)',
+            key: ''
+        };
+    }
+    else
+    {
+        let ret = null;
+
+        Object.keys(aggDict).map(key =>
+        {
+            if (field.length > key.length && field.substr(0, key.length) === key)
+            {
+                ret = {
+                    func: aggDict[key],
+                    key
+                };
+            }
+        });
+
+        return ret;
+    }
+}
+
+function getAggFilter(args, level)
+{
+    let qraphqlFilter = '';
+
+    args = args.filter(x => x.name.value === 'aggFilter');
+
+    if (args.length)
+    {
+        const [filter] = args;
+        let filterParts = [];
+
+        filter.value.fields
+            .filter(x => x !== undefined)
+            .map(filterVal =>
+            {
+                const aggField = getAggFieldSql(filterVal.name.value);
+                const fieldName = aggField.func
+                    .replace('$', `${filterVal.name.value.substr(aggField.key.length)}`)
+
+                {
+                    filterVal.value.fields.map(filterField =>
+                    {
+                        const value1 = (filterField.value.kind === 'StringValue')
+                            ? ((filterField.name.value === 'contains' || filterField.name.value === 'notContains')
+                                ? `'%${filterField.value.value}%'`
+                                : `'${filterField.value.value}'`)
+                            : filterField.value.value;
+
+                            const operator = operators[filterField.name.value];
+
+                        if (operator === operators.arrayContains
+                               || operator === operators.arrayNotContains)
+                        {
+                            filterParts.push(`${value1}${operator}(a${level}."${filterVal.name.value}")`);
+                        }
+                        else
+                        {
+                            filterParts.push(`${fieldName}${operator}${value1}`);
                         }
                     });
                 }
@@ -580,25 +660,18 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
         {
             useKey = true;
         }
-        else if (x === 'count')
-        {
-            fields.count = 'COUNT(*)';
-        }
         else
         {
-            Object.keys(aggDict).map(key =>
-            {
-                if (x.length > key.length && x.substr(0, key.length) === key)
-                {
-                    fields[x] = aggDict[key].replace('$', `a${level}."${x.substr(key.length)}"`);
-                }
-            });
+            const aggField = getAggFieldSql(x);
+            fields[x] = aggField.func
+                .replace('$', `a${level}."${x.substr(aggField.key.length)}"`);
         }
     });
 
-    const aggSelect = (aggColumn.length > 0) ? (aggColumn + ', ') : '';
+    const fieldKeys = Object.keys(fields);
+    const aggSelect = (aggColumn.length > 0) ? (aggColumn + (fieldKeys.length ? ', ' : '')) : '';
     const groupBy = (aggColumn.length > 0) ? ` GROUP BY ${aggColumn}` : '';
-    const fieldsSelect = Object.keys(fields).map(k => `${fields[k]} AS "${k}"`).join(', ');
+    const fieldsSelect = fieldKeys.map(k => `${fields[k]} AS "${k}"`).join(', ');
 
     const realTableName = tableName.substr(0, tableName.length - aggPostfix.length);
     const fkRowsAll = getFkData(realTableName);
@@ -606,6 +679,12 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
     const qraphqlFilter = (selection.arguments !== undefined)
         ? getFilter(selection.arguments, level, fkRowsAll)
         : '';
+
+    const qraphqlAggFilter = (selection.arguments !== undefined)
+        ? getAggFilter(selection.arguments, level)
+        : '';
+
+    const havingOperator = qraphqlAggFilter.length ? ' HAVING' : '';
 
     const inheritFilters = processInheritFilters(selection, fkRowsAll, qraphqlFilter, level);
 
@@ -616,7 +695,7 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
     }
 
     const aggQuery = `SELECT ${aggSelect}${fieldsSelect} FROM ${schema}"${realTableName}" a${level} ${inheritFilters.relFilter}
-        ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${groupBy};`;
+        ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${groupBy}${havingOperator}${qraphqlAggFilter};`;
     plv8.elog(NOTICE, aggQuery);
 
     const ret = plv8.execute(aggQuery);
