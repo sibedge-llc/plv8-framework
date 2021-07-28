@@ -672,8 +672,12 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
         else
         {
             const aggField = getAggFieldSql(x);
-            fields[x] = aggField.func
-                .replace('$', `a${level}."${x.substr(aggField.key.length)}"`);
+
+            if (aggField)
+            {
+                fields[x] = aggField.func
+                    .replace('$', `a${level}."${x.substr(aggField.key.length)}"`);
+            }
         }
     });
 
