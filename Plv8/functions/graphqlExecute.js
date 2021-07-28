@@ -69,6 +69,18 @@ const authInfo = isAdmin
 
 const fkData = {};
 
+function getTableLevels(tableName)
+{
+    let tableLevels = authInfo.filter(x => x.table_name === tableName);
+
+    if (!tableLevels.length)
+    {
+        tableLevels = authInfo.filter(x => x.table_name === defaultAuthKey);
+    }
+
+    return tableLevels;
+}
+
 function getFkData(tableName)
 {
     if (tableName in fkData)
@@ -310,13 +322,9 @@ function viewTable(selection, tableName, result, where, level)
     // Authorize
     let readAllowed = isAdmin;
 
-    if (isAnonymous)
+    if (!readAllowed)
     {
-        let tableLevels = authInfo.filter(x => x.table_name === tableName);
-        if (!tableLevels.length)
-        {
-            tableLevels = authInfo.filter(x => x.table_name === defaultAuthKey);
-        }
+        let tableLevels = getTableLevels(tableName);
 
         if (!tableLevels.length)
         {
@@ -325,7 +333,8 @@ function viewTable(selection, tableName, result, where, level)
         else
         {
             const [tableLevel] = tableLevels;
-            readAllowed = tableLevel.access_level & api.accessLevels.ANY_READ;
+            const requiredLevel = isAnonymous ? api.accessLevels.ANY_READ : api.accessLevels.USER_READ;
+            readAllowed = tableLevel.access_level & requiredLevel;
         }
     }
 

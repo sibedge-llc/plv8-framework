@@ -1,21 +1,21 @@
-exports.query = `query  {
-  base_order(filter: {cancelled: null,completed: null,id: {less: 100},account: true}, orderBy: order_type, skip: 3, take: 2) {
+exports.query = `{
+  invoice_order(filter: {order_type: {equals: "bn"}, payment: true}) {
     id
     order_type
-    order_name
-    step
     created
-    status
-    account(filter: {email: {contains: "a"}}) {
+    order_name
+    account {
       id
       email
     }
-  }
-  base_order_agg(filter: {cancelled: null,completed: null,id: {less: 100},account: true}) {
-    count
-    account(filter: {email: {contains: "a"}})
+    payment {
+      id
+    }
   }
 }
 `;
 
 exports.schema = 'public';
+exports.user = {
+    userId: 2
+};

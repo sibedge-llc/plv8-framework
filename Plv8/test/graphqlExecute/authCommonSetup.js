@@ -45,8 +45,10 @@ exports.setAuthSql = function(accessLevels)
 }
 
 exports.fill = `
-INSERT INTO account(id, name) VALUES (1, 'Alex'), (2, 'Peter');
+INSERT INTO account(id, name) VALUES (1, 'Alex'), (2, 'Peter'), (3, 'Kate');
 INSERT INTO company_type (id, name) VALUES (1, 'Office'), (2, 'Shop');
+INSERT INTO company(id, account_id, company_type_id, name) VALUES
+    (1, 1, 1, 'Sales'), (2, 1, 2, 'Appliances'), (3, 2, 2, 'Fruits');
 `;
 
 exports.createSql = function()
