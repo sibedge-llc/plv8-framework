@@ -11,8 +11,8 @@ test('Single graphql query test', () =>
 
     const setup = require(__dirname + '/authCommonSetup.js');
     const authLevels = {
-        '$default': auth.accessLevels.ANON_READ,
-        company_type: auth.accessLevels.USER_READ
+        '$default': auth.accessLevels.USER_READ,
+        company: auth.accessLevels.USER_READ_OWN
     };
 
     sqlite.connect(dbPath);
@@ -21,8 +21,10 @@ test('Single graphql query test', () =>
     sqlite.close();
 
     const result = testHelper.runSqlite('graphqlExecute', __filename);
-    const items = result.data.company_type;
-    expect(items.length).toBe(0);
+    const items = result.data.company;
+    
+    expect(items.length).toBe(2);
+    expect(items.map(x => x.id)).toEqual([1, 2]);
 
     sqlite.connect(dbPath);
     sqlite.run(setup.dropSql());

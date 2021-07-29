@@ -12,7 +12,7 @@ test('Single graphql query test', () =>
     const setup = require(__dirname + '/authCommonSetup.js');
     const authLevels = {
         '$default': auth.accessLevels.USER_READ,
-        company_type: auth.accessLevels.ANY_READ
+        company_type: auth.accessLevels.ANON_READ
     };
 
     sqlite.connect(dbPath);

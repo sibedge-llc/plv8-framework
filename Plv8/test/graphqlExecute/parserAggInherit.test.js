@@ -16,7 +16,6 @@ test('Mock, aggregate operators should be used', () =>
     expect(ast[0].type).toBe("select");
 
     const columns = ast[0].columns;
-    console.log(columns);
     expect(columns).toHaveLength(1);
     
     expect(columns[0].expr.type).toBe("aggr_func");

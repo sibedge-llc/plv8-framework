@@ -10,7 +10,7 @@ test('Single graphql query test', () =>
     top.dbPath = dbPath;
 
     const setup = require(__dirname + '/authCommonSetup.js');
-    const authLevels = { '$default': auth.accessLevels.ANY_READ };
+    const authLevels = { '$default': auth.accessLevels.ANON_READ };
 
     sqlite.connect(dbPath);
     sqlite.run(setup.createSql());

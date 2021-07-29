@@ -321,6 +321,7 @@ function viewTable(selection, tableName, result, where, level)
 {
     // Authorize
     let readAllowed = isAdmin;
+    let userFilter = false;
 
     if (!readAllowed)
     {
@@ -333,8 +334,14 @@ function viewTable(selection, tableName, result, where, level)
         else
         {
             const [tableLevel] = tableLevels;
-            const requiredLevel = isAnonymous ? api.accessLevels.ANY_READ : api.accessLevels.USER_READ;
+            const requiredLevel = isAnonymous ? api.accessLevels.ANON_READ : api.accessLevels.USER_READ;
             readAllowed = tableLevel.access_level & requiredLevel;
+
+            if (!readAllowed && isUser && (tableLevel.access_level & api.accessLevels.USER_READ_OWN))
+            {
+                readAllowed = true;
+                userFilter = true;
+            }
         }
     }
 
@@ -357,6 +364,11 @@ function viewTable(selection, tableName, result, where, level)
     const fkFields = fkRows.map(function (a, index) { return a.column_name });
     const allFields = fkFields.concat(tableKeys);
     const allFieldsFiltered = allFields.filter(function (item, pos) { return allFields.indexOf(item) === pos });
+
+    if (userFilter)
+    {
+        allFieldsFiltered.push(userField);
+    }
 
     const sysQuery = "SELECT column_name FROM graphql.schema_columns WHERE "
         + `table_name='${tableName}' AND column_name IN('${allFieldsFiltered.join("', '")}');`;
@@ -467,7 +479,18 @@ function viewTable(selection, tableName, result, where, level)
             sqlOperator = where.length ? ' AND' : ' WHERE';
         }
 
-        query += `${inheritFilters.relFilter} ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${orderBy}${limit}`;
+        let userWhere = '';
+
+        if (userFilter && rows.filter(x => x.column_name === userField).length)
+        {
+            userWhere = (where.length || inheritFilters.relWhere.length || qraphqlFilter.length)
+                ? ' AND'
+                : ' WHERE';
+
+            userWhere = `${userWhere} a${level}."${userField}"=${userId}`;            
+        }
+
+        query += `${inheritFilters.relFilter} ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${userWhere}${orderBy}${limit}`;
 
         plv8.elog(NOTICE, query);
         items = plv8.execute(query);
