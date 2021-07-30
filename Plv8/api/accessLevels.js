@@ -1,9 +1,14 @@
+const ANON_READ = 0b0000001;
+const USER_READ = 0b0000010;
+
 exports.accessLevels = {
-    ANON_READ:      0b0000001,
-    USER_READ:      0b0000010,
+    ANON_READ,
+    USER_READ,
+    ANY_READ: ANON_READ | USER_READ,
     USER_READ_OWN:  0b0000100,
     RELATED_READ:   0b0001000,
     USER_WRITE:     0b0010000,
     USER_WRITE_OWN: 0b0100000,
-    USER_TABLE:     0b1000000
+    USER_TABLE:     0b1000000,
+    DEFAULT_KEY: '$default'
 };

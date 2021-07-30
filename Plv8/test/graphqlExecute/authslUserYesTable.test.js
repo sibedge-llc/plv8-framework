@@ -11,7 +11,7 @@ test('Single graphql query test', () =>
 
     const setup = require(__dirname + '/authCommonSetup.js');
     const authLevels = {
-        '$default': 0,
+        [auth.accessLevels.DEFAULT_KEY]: 0,
         company: auth.accessLevels.USER_READ
     };
 

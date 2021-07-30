@@ -25,7 +25,6 @@ const isAdmin = !user || !user.isAnonymous && !user.userId;
 const isAnonymous = !isAdmin && user.isAnonymous;
 const userId = !isAdmin ? user.userId : null;
 const isUser = userId > 0;
-const defaultAuthKey = '$default';
 
 if (!schema)
 {
@@ -75,7 +74,7 @@ function getTableLevels(tableName)
 
     if (!tableLevels.length)
     {
-        tableLevels = authInfo.filter(x => x.table_name === defaultAuthKey);
+        tableLevels = authInfo.filter(x => x.table_name === api.accessLevels.DEFAULT_KEY);
     }
 
     return tableLevels;
