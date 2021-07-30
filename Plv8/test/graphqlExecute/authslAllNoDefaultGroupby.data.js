@@ -1,9 +1,5 @@
 exports.query = `query {
-    company_type {
-      id
-      name
-    }
-    company_type_agg {
+    company_type_agg (groupBy: name) {
       count
     }
   }

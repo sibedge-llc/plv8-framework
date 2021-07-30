@@ -24,6 +24,9 @@ test('Single graphql query test', () =>
     const items = result.data.company_type;
     expect(items.length).toBe(2);
 
+    const itemsAgg = result.data.company_type_agg;
+    expect(itemsAgg[0].count).toBe(2);
+
     sqlite.connect(dbPath);
     sqlite.run(setup.dropSql());
     sqlite.close();

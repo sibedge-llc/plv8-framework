@@ -3,6 +3,9 @@ exports.query = `query {
       id
       name
     }
+    company_type_agg {
+      count
+    }    
   }
 `;
 

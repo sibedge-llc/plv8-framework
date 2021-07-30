@@ -81,6 +81,36 @@ function getTableLevels(tableName)
     return tableLevels;
 }
 
+function getAuthInfo(tableName)
+{
+    let readAllowed = isAdmin;
+    let userFilter = false;
+
+    if (!readAllowed)
+    {
+        let tableLevels = getTableLevels(tableName);
+
+        if (!tableLevels.length)
+        {
+            readAllowed = true;
+        }
+        else
+        {
+            const [tableLevel] = tableLevels;
+            const requiredLevel = isAnonymous ? api.accessLevels.ANON_READ : api.accessLevels.USER_READ;
+            readAllowed = tableLevel.access_level & requiredLevel;
+
+            if (!readAllowed && isUser && (tableLevel.access_level & api.accessLevels.USER_READ_OWN))
+            {
+                readAllowed = true;
+                userFilter = true;
+            }
+        }
+    }
+
+    return { readAllowed, userFilter };
+}
+
 function getFkData(tableName)
 {
     if (tableName in fkData)
@@ -320,30 +350,7 @@ function processInheritFilters(selection, fkRows, otherFilter, level)
 function viewTable(selection, tableName, result, where, level)
 {
     // Authorize
-    let readAllowed = isAdmin;
-    let userFilter = false;
-
-    if (!readAllowed)
-    {
-        let tableLevels = getTableLevels(tableName);
-
-        if (!tableLevels.length)
-        {
-            readAllowed = true;
-        }
-        else
-        {
-            const [tableLevel] = tableLevels;
-            const requiredLevel = isAnonymous ? api.accessLevels.ANON_READ : api.accessLevels.USER_READ;
-            readAllowed = tableLevel.access_level & requiredLevel;
-
-            if (!readAllowed && isUser && (tableLevel.access_level & api.accessLevels.USER_READ_OWN))
-            {
-                readAllowed = true;
-                userFilter = true;
-            }
-        }
-    }
+    const { readAllowed, userFilter } = getAuthInfo(tableName);
 
     if (!readAllowed)
     {
@@ -681,6 +688,18 @@ function viewTable(selection, tableName, result, where, level)
 
 function executeAgg(selection, tableName, result, where, level, aggColumn)
 {
+    const realTableName = tableName.substr(0, tableName.length - aggPostfix.length);
+    const useGroupBy = aggColumn.length > 0;
+
+    // Authorize
+    const { readAllowed, userFilter } = getAuthInfo(realTableName);
+
+    if (!readAllowed && useGroupBy)
+    {
+        return [];
+    }
+
+    const emptyResult = {};
     const fields = {};
     let useKey = false;
 
@@ -688,7 +707,11 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
     {
         const x = s.name.value;
 
-        if (x === 'key')
+        if (!readAllowed)
+        {
+            emptyResult[x] = x === 'count' ? 0 : null;
+        }
+        else if (x === 'key')
         {
             useKey = true;
         }
@@ -704,12 +727,16 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
         }
     });
 
-    const fieldKeys = Object.keys(fields);
-    const aggSelect = (aggColumn.length > 0) ? (aggColumn + (fieldKeys.length ? ', ' : '')) : '';
-    const groupBy = (aggColumn.length > 0) ? ` GROUP BY ${aggColumn}` : '';
-    const fieldsSelect = fieldKeys.map(k => `${fields[k]} AS "${k}"`).join(', ');
+    if (!readAllowed)
+    {
+        return [emptyResult];
+    }
 
-    const realTableName = tableName.substr(0, tableName.length - aggPostfix.length);
+    const fieldKeys = Object.keys(fields);
+    const aggSelect = useGroupBy ? (aggColumn + (fieldKeys.length ? ', ' : '')) : '';
+    const groupBy = useGroupBy ? ` GROUP BY ${aggColumn}` : '';
+    const fieldsSelect = fieldKeys.map(k => `${fields[k]} AS "${k}"`).join(', ');
+    
     const fkRowsAll = getFkData(realTableName);
 
     const qraphqlFilter = (selection.arguments !== undefined)
@@ -730,8 +757,18 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
         sqlOperator = where.length ? ' AND' : ' WHERE';
     }
 
+    let userWhere = '';
+    if (userFilter)
+    {
+        userWhere = (where.length || inheritFilters.relWhere.length || qraphqlFilter.length)
+            ? ' AND'
+            : ' WHERE';
+
+        userWhere = `${userWhere} a${level}."${userField}"=${userId}`;            
+    }
+
     const aggQuery = `SELECT ${aggSelect}${fieldsSelect} FROM ${schema}"${realTableName}" a${level} ${inheritFilters.relFilter}
-        ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${groupBy}${havingOperator}${qraphqlAggFilter};`;
+        ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${userWhere}${groupBy}${havingOperator}${qraphqlAggFilter};`;
     plv8.elog(NOTICE, aggQuery);
 
     const ret = plv8.execute(aggQuery);
