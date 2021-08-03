@@ -49,6 +49,15 @@ INSERT INTO account(id, name) VALUES (1, 'Alex'), (2, 'Peter'), (3, 'Kate');
 INSERT INTO company_type (id, name) VALUES (1, 'Office'), (2, 'Shop');
 INSERT INTO company(id, account_id, company_type_id, name) VALUES
     (1, 1, 1, 'Sales'), (2, 1, 2, 'Appliances'), (3, 2, 2, 'Fruits');
+INSERT INTO section(id, company_id, name) VALUES
+    (1, 1, 'Pre-sales'), (2, 2, 'Appliances-1'), (3, 2, 'Appliances-2'), (4, 3, 'Bananas');
+
+INSERT INTO graphql_schema_foreign_keys (column_name, foreign_table_name, foreign_column_name, table_name) VALUES
+    ('account_id', 'account', 'id', 'company'),
+    ('company_type_id', 'company_type', 'id', 'company'),
+    ('company_id', 'company', 'id', 'section'),
+    ('account_id', 'account', 'id', 'branch'),
+    ('company_id', 'company', 'id', 'branch');
 `;
 
 exports.createSql = function()

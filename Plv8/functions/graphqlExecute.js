@@ -80,7 +80,7 @@ function getTableLevels(tableName)
     return tableLevels;
 }
 
-function getAuthInfo(tableName)
+function getAuthInfo(tableName, level)
 {
     let readAllowed = isAdmin;
     let userFilter = false;
@@ -103,6 +103,11 @@ function getAuthInfo(tableName)
             {
                 readAllowed = true;
                 userFilter = true;
+            }
+
+            if (!readAllowed && (tableLevel.access_level & api.accessLevels.RELATED_READ))
+            {
+                readAllowed = level > 1;
             }
         }
     }
@@ -349,7 +354,7 @@ function processInheritFilters(selection, fkRows, otherFilter, level)
 function viewTable(selection, tableName, result, where, level)
 {
     // Authorize
-    const { readAllowed, userFilter } = getAuthInfo(tableName);
+    const { readAllowed, userFilter } = getAuthInfo(tableName, level);
 
     if (!readAllowed)
     {
@@ -609,16 +614,25 @@ function viewTable(selection, tableName, result, where, level)
 
                     viewTable(field, fkReverseRow.table_name, subResult, innerWhere, level + 1);
 
-                    if (subResult[fkReverseRow.table_name] !== undefined)
-                    {
-                        subResult[fkReverseRow.table_name].map((a, index) =>
-                        {
-                            subResultOrdered[a[fkReverseRow.column_name]] = subResultOrdered[a[fkReverseRow.column_name]] || [];
-                            subResultOrdered[a[fkReverseRow.column_name]].push(a);
-                        });
-                    }
+                    const subItems = subResult[fkReverseRow.table_name];
 
-                    items.map(item => { item[field.name.value] = subResultOrdered[item[idField]]; });
+                    if (subItems !== undefined)
+                    {
+                        if (subItems.length)
+                        {
+                            subItems.map((a, index) =>
+                            {
+                                subResultOrdered[a[fkReverseRow.column_name]] = subResultOrdered[a[fkReverseRow.column_name]] || [];
+                                subResultOrdered[a[fkReverseRow.column_name]].push(a);
+                            });
+
+                            items.map(item => { item[field.name.value] = subResultOrdered[item[idField]]; });
+                        }
+                        else
+                        {
+                            items.map(item => { item[field.name.value] = [] });
+                        }
+                    }                    
                 }
                 else if (field.name.value.toLowerCase() === (fkReverseRow.table_name + aggPostfix).toLowerCase())
                 {
@@ -691,7 +705,7 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
     const useGroupBy = aggColumn.length > 0;
 
     // Authorize
-    const { readAllowed, userFilter } = getAuthInfo(realTableName);
+    const { readAllowed, userFilter } = getAuthInfo(realTableName, level);
 
     if (!readAllowed && useGroupBy)
     {
