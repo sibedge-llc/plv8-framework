@@ -45,8 +45,12 @@ const operators =
     greaterOrEquals: '>=',
     contains: ' ILIKE ',
     notContains: ' NOT ILIKE ',
+    starts: ' ILIKE ',
+    ends: ' ILIKE ',
     arrayContains: ' = ANY',
-    arrayNotContains: ' != ALL'
+    arrayNotContains: ' != ALL',
+    in: ' IN ',
+    isNull: ' IS '
 };
 
 const idField = 'id';
@@ -149,6 +153,48 @@ function getRelatedName(columnName)
     return columnName.substr(0, columnName.length - idPostfix.length);
 }
 
+function getOperatorPart(filterField, fieldName)
+{
+    const operatorName = filterField.name.value;
+    const kind = filterField.value.kind;
+    const operator = operators[operatorName];
+    let value = filterField.value.value;
+
+    if (operator === operators.arrayContains
+           || operator === operators.arrayNotContains)
+    {
+        return `${value}${operator}(${fieldName})`;
+    }
+    else if (operatorName === 'starts')
+    {
+        value = `'${filterField.value.value}%'`;
+    }
+    else if (operatorName === 'ends')
+    {
+        value = `'%${filterField.value.value}'`;
+    }
+    else if (operator === operators.contains || operator === operators.notContains)
+    {
+        value = `'%${filterField.value.value}%'`;
+    }
+    else if (operator === operators.isNull)
+    {
+        value = `${value ? '' : 'NOT '}NULL`;
+    }
+    else if (operator === operators.in)
+    {
+        value = `(${filterField.value.values
+            .map(x => x.value)
+            .join(', ')})`;
+    }
+    else if (kind === 'StringValue')
+    {
+        value = `'${filterField.value.value}'`;
+    }    
+
+    return `${fieldName}${operator}${value}`;
+}
+
 function getFilter(args, level, fkRows)
 {
     const relatedNames = fkRows
@@ -180,25 +226,11 @@ function getFilter(args, level, fkRows)
                 }
                 else
                 {
+                    const fieldName = `a${level}."${filterVal.name.value}"`;
+
                     filterVal.value.fields.map(filterField =>
                     {
-                        const value1 = (filterField.value.kind === 'StringValue')
-                            ? ((filterField.name.value === 'contains' || filterField.name.value === 'notContains')
-                                ? `'%${filterField.value.value}%'`
-                                : `'${filterField.value.value}'`)
-                            : filterField.value.value;
-
-                            const operator = operators[filterField.name.value];
-
-                        if (operator === operators.arrayContains
-                               || operator === operators.arrayNotContains)
-                        {
-                            filterParts.push(`${value1}${operator}(a${level}."${filterVal.name.value}")`);
-                        }
-                        else
-                        {
-                            filterParts.push(`a${level}."${filterVal.name.value}"${operator}${value1}`);
-                        }
+                        filterParts.push(getOperatorPart(filterField, fieldName));
                     });
                 }
             });
@@ -259,28 +291,12 @@ function getAggFilter(args, level)
                 const fieldName = aggField.func
                     .replace('$', `${filterVal.name.value.substr(aggField.key.length)}`)
 
+                const fieldNameFull = `a${level}."${fieldName}"`;
+
+                filterVal.value.fields.map(filterField =>
                 {
-                    filterVal.value.fields.map(filterField =>
-                    {
-                        const value1 = (filterField.value.kind === 'StringValue')
-                            ? ((filterField.name.value === 'contains' || filterField.name.value === 'notContains')
-                                ? `'%${filterField.value.value}%'`
-                                : `'${filterField.value.value}'`)
-                            : filterField.value.value;
-
-                            const operator = operators[filterField.name.value];
-
-                        if (operator === operators.arrayContains
-                               || operator === operators.arrayNotContains)
-                        {
-                            filterParts.push(`${value1}${operator}(a${level}."${filterVal.name.value}")`);
-                        }
-                        else
-                        {
-                            filterParts.push(`${fieldName}${operator}${value1}`);
-                        }
-                    });
-                }
+                    filterParts.push(getOperatorPart(filterField, fieldNameFull));
+                });
             });
 
         if (filterParts.length > 0)

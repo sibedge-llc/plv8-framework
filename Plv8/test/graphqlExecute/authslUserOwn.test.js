@@ -24,7 +24,7 @@ test('Single graphql query test', () =>
     const items = result.data.company;
     
     expect(items.length).toBe(2);
-    expect(items.map(x => x.id)).toEqual([1, 2]);
+    expect(items.map(x => x.id).sort()).toEqual([1, 2]);
 
     const itemsAgg = result.data.company_agg;
     expect(itemsAgg[0].count).toBe(2);
