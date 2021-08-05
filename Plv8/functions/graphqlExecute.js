@@ -184,7 +184,7 @@ function getOperatorPart(filterField, fieldName)
     else if (operator === operators.in)
     {
         value = `(${filterField.value.values
-            .map(x => x.value)
+            .map(x => x.kind === 'StringValue' ? `'${x.value}'` : x.value)
             .join(', ')})`;
     }
     else if (kind === 'StringValue')
@@ -289,13 +289,11 @@ function getAggFilter(args, level)
             {
                 const aggField = getAggFieldSql(filterVal.name.value);
                 const fieldName = aggField.func
-                    .replace('$', `${filterVal.name.value.substr(aggField.key.length)}`)
-
-                const fieldNameFull = `a${level}."${fieldName}"`;
+                    .replace('$', `a${level}."${filterVal.name.value.substr(aggField.key.length)}"`)
 
                 filterVal.value.fields.map(filterField =>
                 {
-                    filterParts.push(getOperatorPart(filterField, fieldNameFull));
+                    filterParts.push(getOperatorPart(filterField, fieldName));
                 });
             });
 

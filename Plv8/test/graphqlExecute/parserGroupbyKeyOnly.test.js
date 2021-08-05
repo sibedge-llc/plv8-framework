@@ -23,4 +23,6 @@ test('Mock, Group by "role" should be used', () =>
     const roleExpr = ast[0].columns[0].expr;
     expect(roleExpr.type).toBe("column_ref");
     expect(roleExpr.column).toBe("role");
+
+    expect(ast[0].having).toBeNull();
 });
