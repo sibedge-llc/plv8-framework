@@ -88,6 +88,7 @@ function getAuthInfo(tableName, level)
 {
     let readAllowed = isAdmin;
     let userFilter = false;
+    let userFilterField = userField;
 
     if (!readAllowed)
     {
@@ -113,10 +114,18 @@ function getAuthInfo(tableName, level)
             {
                 readAllowed = level > 1;
             }
+
+            if (!readAllowed && isUser && (tableLevel.access_level & api.accessLevels.USER_TABLE))
+            {
+                readAllowed = true;
+                userFilter = true;
+                userFilterField = idField;
+            }
+
         }
     }
 
-    return { readAllowed, userFilter };
+    return { readAllowed, userFilter, userFilterField };
 }
 
 function getFkData(tableName)
@@ -368,7 +377,7 @@ function processInheritFilters(selection, fkRows, otherFilter, level)
 function viewTable(selection, tableName, result, where, level)
 {
     // Authorize
-    const { readAllowed, userFilter } = getAuthInfo(tableName, level);
+    const { readAllowed, userFilter, userFilterField } = getAuthInfo(tableName, level);
 
     if (!readAllowed)
     {
@@ -392,7 +401,7 @@ function viewTable(selection, tableName, result, where, level)
 
     if (userFilter)
     {
-        allFieldsFiltered.push(userField);
+        allFieldsFiltered.push(userFilterField);
     }
 
     const sysQuery = "SELECT column_name FROM graphql.schema_columns WHERE "
@@ -506,13 +515,13 @@ function viewTable(selection, tableName, result, where, level)
 
         let userWhere = '';
 
-        if (userFilter && rows.filter(x => x.column_name === userField).length)
+        if (userFilter && rows.filter(x => x.column_name === userFilterField).length)
         {
             userWhere = (where.length || inheritFilters.relWhere.length || qraphqlFilter.length)
                 ? ' AND'
                 : ' WHERE';
 
-            userWhere = `${userWhere} a${level}."${userField}"=${userId}`;            
+            userWhere = `${userWhere} a${level}."${userFilterField}"=${userId}`;            
         }
 
         query += `${inheritFilters.relFilter} ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${userWhere}${orderBy}${limit}`;
@@ -719,7 +728,7 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
     const useGroupBy = aggColumn.length > 0;
 
     // Authorize
-    const { readAllowed, userFilter } = getAuthInfo(realTableName, level);
+    const { readAllowed, userFilter, userFilterField } = getAuthInfo(realTableName, level);
 
     if (!readAllowed && useGroupBy)
     {
@@ -791,7 +800,7 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
             ? ' AND'
             : ' WHERE';
 
-        userWhere = `${userWhere} a${level}."${userField}"=${userId}`;            
+        userWhere = `${userWhere} a${level}."${userFilterField}"=${userId}`;            
     }
 
     const aggQuery = `SELECT ${aggSelect}${fieldsSelect} FROM ${schema}"${realTableName}" a${level} ${inheritFilters.relFilter}
