@@ -357,7 +357,7 @@ function processInheritFilters(selection, fkRows, otherFilter, level)
             const [fkRow] = ret.relatableFkRows
                 .filter(fkRow => getRelatedName(fkRow.column_name).toLowerCase() === x.toLowerCase());
 
-            const relOperator = (otherFilter.length || relFilter.length) ? ' AND' : '';
+            const relOperator = (otherFilter.length || ret.relFilter.length) ? ' AND' : '';
             ret.relFilter += ` JOIN ${schema}"${fkRow.foreign_table_name}" a${level + 1} ON a${level}."${fkRow.column_name}"=a${level + 1}."${fkRow.foreign_column_name}"`;
 
             const [selectionField] = table.selections
