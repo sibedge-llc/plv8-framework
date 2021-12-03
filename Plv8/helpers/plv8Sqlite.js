@@ -21,6 +21,7 @@ exports.execute = function (query)
     let ret = sqlite.run(query
         .replace('true', '1')
         .replace('false', '0')
+        .replace('ILIKE', 'LIKE')
         .replace('graphql.', 'graphql_'));
 
     console.log(ret);
