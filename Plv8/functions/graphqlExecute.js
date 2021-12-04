@@ -204,11 +204,13 @@ function getOperatorPart(filterField, fieldName)
     return `${fieldName}${operator}${value}`;
 }
 
-function getFilter(args, level, fkRows)
+function getFilter(args, level, fkRows, fkReverseRows)
 {
+    fkReverseRows = fkReverseRows ? fkReverseRows : [];
     const relatedNames = fkRows
        .filter(x => canBeRelated(x.column_name))
-       .map(x => getRelatedName(x.column_name));
+       .map(x => getRelatedName(x.column_name))
+       .concat(fkReverseRows.map(y => y.table_name));
 
     let qraphqlFilter = '';
 
@@ -337,6 +339,27 @@ function getRelationFilter(args, fkRows)
     return ret;
 }
 
+function getRelationReverseFilter(args, fkRows, level)
+{
+    const relatedNames = fkRows
+       .map(x => x.table_name);
+
+    const ret = {};
+
+    args = args.filter(x => x.name.value === 'filter');
+
+    if (args.length)
+    {
+        const [filter] = args;
+
+        filter.value.fields
+            .filter(x => x !== undefined && relatedNames.includes(x.name.value))
+            .map(x => ret[x.name.value] = x.value.value);
+    }
+
+    return ret;
+}
+
 function processInheritFilters(selection, fkRows, otherFilter, level)
 {
     const table = selection.selectionSet;
@@ -374,6 +397,44 @@ function processInheritFilters(selection, fkRows, otherFilter, level)
     return ret;
 }
 
+function processInheritReverseFilters(selection, fkRows, userFilterExist, level)
+{
+    const table = selection.selectionSet;
+
+    const ret = {
+        relationFilter: getRelationReverseFilter(selection.arguments, fkRows, level)
+    };
+
+    ret.relationFilterKeys = Object.keys(ret.relationFilter);
+    ret.relFilter = '';
+   
+    ret.relationFilterKeys
+        .filter(x => ret.relationFilter[x])
+        .map(x =>
+        {
+            const userFilter = userFilterExist ? 'TODO' : '';
+            const [fkRow] = fkRows
+                .filter(fkRow => fkRow.table_name.toLowerCase() === x.toLowerCase());
+
+            const [selectionField] = table.selections
+                .filter(field => field.name.value.toLowerCase() === x.toLowerCase());
+            
+            const relGraphqlFilter = getFilter(selectionField.arguments, level + 1, fkRows);
+
+            const relOperator1 = (userFilter.length || relGraphqlFilter.length) ? ' WHERE' : '';
+            const relOperator2 = (userFilter.length && relGraphqlFilter.length) ? ' AND' : '';
+            const relWhere = (relGraphqlFilter.length)
+                ? `${relOperator1}${userFilter}${relOperator2}${relGraphqlFilter}`
+                : '';
+            
+            ret.relFilter += ` JOIN (SELECT "${fkRow.column_name}" FROM ${schema}"${fkRow.table_name}" a${level + 1}${relWhere}
+                GROUP BY "${fkRow.column_name}") a${level + 1} 
+                ON a${level}."${fkRow.foreign_column_name}"=a${level + 1}."${fkRow.column_name}"`;
+        });
+
+    return ret;
+}
+
 function viewTable(selection, tableName, result, where, level)
 {
     // Authorize
@@ -389,11 +450,19 @@ function viewTable(selection, tableName, result, where, level)
     const tableKeys = table.selections.map(x => x.name.value);
 
     const fkRowsAll = getFkData(tableName);
-    const fkRows = fkRowsAll.filter(x => canBeRelated(x.column_name)).filter(function (item)
-    {
-        return item.table_name === tableName
-            && tableKeys.includes(getRelatedName(item.column_name));
-    });
+    const fkRows = fkRowsAll.filter(x => canBeRelated(x.column_name))
+        .filter(item => item.table_name === tableName
+            && tableKeys.includes(getRelatedName(item.column_name)));
+
+    let aggExist = false;
+    const fkReverseRows = fkRowsAll.filter(item =>
+        {
+            const isAggField = tableKeys.includes(item.table_name + aggPostfix);
+            aggExist = aggExist || isAggField;
+        
+            return item.foreign_table_name === tableName
+                && (tableKeys.includes(item.table_name) || isAggField);
+        });
 
     const fkFields = fkRows.map(function (a, index) { return a.column_name });
     const allFields = fkFields.concat(tableKeys);
@@ -422,7 +491,7 @@ function viewTable(selection, tableName, result, where, level)
     //-- grapghql filters
     if (selection.arguments !== undefined)
     {
-        qraphqlFilter = getFilter(selection.arguments, level, fkRows);
+        qraphqlFilter = getFilter(selection.arguments, level, fkRows, fkReverseRows);
         if (level === 1)
         {
             qraphqlFilter0 = qraphqlFilter;
@@ -485,18 +554,7 @@ function viewTable(selection, tableName, result, where, level)
                     ? `a${level}."${alias.column_name}" AS "${alias.alias}"`
                     : `a${level}."${a.column_name}"`;
             })
-            : rows.map(a => `a${level}."${a.column_name}"`);
-
-        let aggExist = false;
-
-        const fkReverseRows = fkRowsAll.filter(item =>
-        {
-            const isAggField = tableKeys.includes(item.table_name + aggPostfix);
-            aggExist = aggExist || isAggField;
-
-            return item.foreign_table_name === tableName
-                && (tableKeys.includes(item.table_name) || isAggField);
-        });
+            : rows.map(a => `a${level}."${a.column_name}"`);        
 
         if (fields.length < 1 || aggExist)
         {
@@ -506,9 +564,11 @@ function viewTable(selection, tableName, result, where, level)
         // Relation objects filter by existing
         let query = `SELECT ${fields.join(", ")} FROM ${schema}"${tableName}" a${level}`;
         const inheritFilters = processInheritFilters(selection, fkRows, qraphqlFilter, level);
+        const inheritReverseFilters = processInheritReverseFilters(selection, fkReverseRows, userFilter, level);
 
         let sqlOperator = '';
-        if (qraphqlFilter.length || inheritFilters.relFilter.length)
+        if (qraphqlFilter.length
+            || inheritFilters.relFilter.length)
         {
             sqlOperator = where.length ? ' AND' : ' WHERE';
         }
@@ -517,14 +577,16 @@ function viewTable(selection, tableName, result, where, level)
 
         if (userFilter && rows.filter(x => x.column_name === userFilterField).length)
         {
-            userWhere = (where.length || inheritFilters.relWhere.length || qraphqlFilter.length)
+            userWhere = (where.length
+                    || inheritFilters.relWhere.length
+                    || qraphqlFilter.length)
                 ? ' AND'
                 : ' WHERE';
 
             userWhere = `${userWhere} a${level}."${userFilterField}"=${userId}`;            
         }
 
-        query += `${inheritFilters.relFilter} ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${userWhere}${orderBy}${limit}`;
+        query += `${inheritFilters.relFilter} ${inheritReverseFilters.relFilter} ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${userWhere}${orderBy}${limit}`;
 
         plv8.elog(NOTICE, query);
         items = plv8.execute(query);
