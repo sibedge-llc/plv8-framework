@@ -373,7 +373,7 @@ function getRelationReverseFilter(args, fkRows, level)
     return ret;
 }
 
-function processInheritFilters(selection, fkRows, otherFilter, level)
+function processInheritFilters(selection, fkRows, otherFilter, level, tableName)
 {
     const table = selection.selectionSet;
 
@@ -390,8 +390,17 @@ function processInheritFilters(selection, fkRows, otherFilter, level)
         .filter(x => ret.relationFilter[x])
         .map(x =>
         {
-            const [fkRow] = ret.relatableFkRows
+            let foundFkRows = ret.relatableFkRows
                 .filter(fkRow => getRelatedName(fkRow.column_name).toLowerCase() === x.toLowerCase());
+
+            if (foundFkRows.length > 1)
+            {
+                foundFkRows = foundFkRows
+                    .filter(fkRow => fkRow.table_name.toLowerCase() === tableName.toLowerCase()
+                        || (fkRow.table_name + aggPostfix).toLowerCase() === tableName.toLowerCase())
+            }
+
+            const [fkRow] = foundFkRows;
 
             const relOperator = (otherFilter.length || ret.relFilter.length) ? ' AND' : '';
             ret.relFilter += ` JOIN ${schema}"${fkRow.foreign_table_name}" a${level + 1} ON a${level}."${fkRow.column_name}"=a${level + 1}."${fkRow.foreign_column_name}"`;
@@ -595,7 +604,7 @@ function viewTable(selection, tableName, result, where, level)
 
         // Relation objects filter by existing
         let query = `SELECT ${fields.join(", ")} FROM ${schema}"${tableName}" a${level}`;
-        const inheritFilters = processInheritFilters(selection, fkRows, qraphqlFilter, level);
+        const inheritFilters = processInheritFilters(selection, fkRows, qraphqlFilter, level, tableName);
         const inheritReverseFilters = processInheritReverseFilters(selection, fkReverseRows, level);
 
         let sqlOperator = '';
@@ -870,7 +879,7 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
 
     const havingOperator = qraphqlAggFilter.length ? ' HAVING' : '';
 
-    const inheritFilters = processInheritFilters(selection, fkRowsAll, qraphqlFilter, level);
+    const inheritFilters = processInheritFilters(selection, fkRowsAll, qraphqlFilter, level, tableName);
 
     let sqlOperator = '';
     if (qraphqlFilter.length || inheritFilters.relFilter.length)
