@@ -4,13 +4,16 @@ const testHelper = require(appRoot + '/helpers/testHelper.js');
 const top = require(appRoot + "/helpers/top.js");
 const auth = require(appRoot + "/api/accessLevels.js");
 
-test('Single graphql query test', () =>
+test('Graphql query with inherit filter test', () =>
 {
     const dbPath = testHelper.getSqliteFileName(__filename);
     top.dbPath = dbPath;
 
     const setup = require(__dirname + '/authCommonSetup.js');
-    const authLevels = { [auth.accessLevels.DEFAULT_KEY]: auth.accessLevels.USER_READ };
+    const authLevels = {
+        [auth.accessLevels.DEFAULT_KEY]: auth.accessLevels.ANY_READ,
+        company: auth.accessLevels.USER_READ
+    };
 
     sqlite.connect(dbPath);
     sqlite.run(setup.createSql());

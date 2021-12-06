@@ -2,9 +2,8 @@ const sqlite = require('sqlite-sync');
 const appRoot = require('app-root-path');
 const testHelper = require(appRoot + '/helpers/testHelper.js');
 const top = require(appRoot + "/helpers/top.js");
-const auth = require(appRoot + "/api/accessLevels.js");
 
-test('Single graphql query test', () =>
+test('Graphql query with reverse inherit filter test', () =>
 {
     const dbPath = testHelper.getSqliteFileName(__filename);
     top.dbPath = dbPath;
