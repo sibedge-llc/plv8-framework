@@ -870,7 +870,7 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
     const fkRowsAll = getFkData(realTableName);
 
     const qraphqlFilter = (selection.arguments !== undefined)
-        ? getFilter(selection.arguments, level, fkRowsAll)
+        ? getFilter(selection.arguments, level, fkRowsAll, fkRowsAll)
         : '';
 
     const qraphqlAggFilter = (selection.arguments !== undefined)
@@ -880,6 +880,7 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
     const havingOperator = qraphqlAggFilter.length ? ' HAVING' : '';
 
     const inheritFilters = processInheritFilters(selection, fkRowsAll, qraphqlFilter, level, tableName);
+    const inheritReverseFilters = processInheritReverseFilters(selection, fkRowsAll, level);
 
     let sqlOperator = '';
     if (qraphqlFilter.length || inheritFilters.relFilter.length)
@@ -897,7 +898,7 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
         userWhere = `${userWhere} a${level}."${userFilterField}"=${userId}`;            
     }
 
-    const aggQuery = `SELECT ${aggSelect}${fieldsSelect} FROM ${schema}"${realTableName}" a${level} ${inheritFilters.relFilter}
+    const aggQuery = `SELECT ${aggSelect}${fieldsSelect} FROM ${schema}"${realTableName}" a${level} ${inheritFilters.relFilter} ${inheritReverseFilters.relFilter}
         ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${userWhere}${groupBy}${havingOperator}${qraphqlAggFilter};`;
     plv8.elog(NOTICE, aggQuery);
 
