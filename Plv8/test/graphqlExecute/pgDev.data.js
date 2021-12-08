@@ -1,16 +1,7 @@
 exports.query = `{
-  invoice_order(filter: {order_type: {equals: "bn"}, payment: true}) {
-    id
-    order_type
-    created
-    order_name
-    account {
-      id
-      email
-    }
-    payment {
-      id
-    }
+  flights_agg (filter: {departure_airport: "TOF", ticket_flights: true}) {
+    count
+    ticket_flights (filter: {fare_conditions: "Business"})
   }
 }
 `;

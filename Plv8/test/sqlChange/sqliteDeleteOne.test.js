@@ -3,7 +3,7 @@ const appRoot = require('app-root-path');
 const testHelper = require(appRoot + '/helpers/testHelper.js');
 const top = require(appRoot + "/helpers/top.js");
 
-test('Single entity insert data test', () =>
+test('Delete one entity test', () =>
 {
     const dbPath = testHelper.getSqliteFileName(__filename);
     top.dbPath = dbPath;

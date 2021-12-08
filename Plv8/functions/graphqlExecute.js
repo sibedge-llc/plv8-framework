@@ -22,9 +22,8 @@ apiFunctions.map(f => api = { ...api, ...require(`../api/${f}.js`) });
 
 /*BEGIN*/
 const isAdmin = !user || !user.isAnonymous && !user.userId;
-const isAnonymous = !isAdmin && user.isAnonymous;
 const userId = !isAdmin ? user.userId : null;
-const isUser = userId > 0;
+const authInfo = isAdmin ? [] : plv8.execute(api.authQuery);
 
 if (!schema)
 {
@@ -57,7 +56,6 @@ const operators =
 const idField = 'id';
 const idPostfix = '_id';
 const aggPostfix = '_agg';
-const userField = 'account_id';
 
 const aggFunctions = ['max', 'min', 'avg', 'sum'];
 const aggFuncPrefix = (aggPostfix[0] === '_') ? '_' : '';
@@ -67,65 +65,11 @@ aggDict['distinct' + aggFuncPrefix] = `array_agg(DISTINCT($))`;
 
 const aliases = plv8.execute('SELECT * FROM graphql.aliases;');
 
-const authInfo = isAdmin
-    ? []
-    : plv8.execute('SELECT * FROM graphql.authorize;');
-
 const fkData = {};
-
-function getTableLevels(tableName)
-{
-    let tableLevels = authInfo.filter(x => x.table_name === tableName);
-
-    if (!tableLevels.length)
-    {
-        tableLevels = authInfo.filter(x => x.table_name === api.accessLevels.DEFAULT_KEY);
-    }
-
-    return tableLevels;
-}
 
 function getAuthInfo(tableName, level)
 {
-    let readAllowed = isAdmin;
-    let userFilter = false;
-    let userFilterField = userField;
-
-    if (!readAllowed)
-    {
-        let tableLevels = getTableLevels(tableName);
-
-        if (!tableLevels.length)
-        {
-            readAllowed = true;
-        }
-        else
-        {
-            const [tableLevel] = tableLevels;
-            const requiredLevel = isAnonymous ? api.accessLevels.ANON_READ : api.accessLevels.USER_READ;
-            readAllowed = tableLevel.access_level & requiredLevel;
-
-            if (!readAllowed && isUser && (tableLevel.access_level & api.accessLevels.USER_READ_OWN))
-            {
-                readAllowed = true;
-                userFilter = true;
-            }
-
-            if (!readAllowed && (tableLevel.access_level & api.accessLevels.RELATED_READ))
-            {
-                readAllowed = level > 1;
-            }
-
-            if (!readAllowed && isUser && (tableLevel.access_level & api.accessLevels.USER_TABLE))
-            {
-                readAllowed = true;
-                userFilter = true;
-                userFilterField = idField;
-            }
-        }
-    }
-
-    return { readAllowed, userFilter, userFilterField };
+    return api.getAuthInfo(tableName, level, authInfo, user, idField);
 }
 
 function getUserWhere(otherWhereExist, userFilterField, level, defaultWhere)
