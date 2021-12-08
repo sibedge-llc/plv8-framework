@@ -4,7 +4,7 @@ const testHelper = require(appRoot + '/helpers/testHelper.js');
 const top = require(appRoot + "/helpers/top.js");
 const auth = require(appRoot + "/api/accessLevels.js");
 
-test('Entity insertion denied test', () =>
+test('Entity insertion allowed test', () =>
 {
     const dbPath = testHelper.getSqliteFileName(__filename);
     top.dbPath = dbPath;

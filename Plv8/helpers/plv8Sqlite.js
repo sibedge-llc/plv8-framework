@@ -11,6 +11,12 @@ exports.quote_ident = quote.quote_ident;
 exports.quote_literal = quote.quote_literal;
 exports.quote_nullable = quote.quote_nullable;
 
+String.prototype.replaceAll = function(search, replacement)
+{
+    const target = this;
+    return target.split(search).join(replacement);
+};
+
 exports.execute = function (query)
 {
     const sqlite = require('sqlite-sync');    
@@ -18,11 +24,13 @@ exports.execute = function (query)
 
     sqlite.connect(top.dbPath);
 
-    let ret = sqlite.run(query
-        .replace('true', '1')
-        .replace('false', '0')
-        .replace('ILIKE', 'LIKE')
-        .replace('graphql.', 'graphql_'));
+    const sqliteQuery = query
+        .replaceAll('true', '1')
+        .replaceAll('false', '0')
+        .replaceAll('ILIKE', 'LIKE')
+        .replaceAll('graphql.', 'graphql_');
+
+    const ret = sqlite.run(sqliteQuery);
 
     console.log(ret);
     sqlite.close();

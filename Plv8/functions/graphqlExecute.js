@@ -163,6 +163,9 @@ function getOperatorPart(filterField, fieldName)
 
 function getFilter(args, level, fkRows, fkReverseRows)
 {
+    const filterName = 'filter';
+    const orName = 'or';
+
     fkReverseRows = fkReverseRows ? fkReverseRows : [];
     const relatedNames = fkRows
        .filter(x => canBeRelated(x.column_name))
@@ -171,7 +174,7 @@ function getFilter(args, level, fkRows, fkReverseRows)
 
     let qraphqlFilter = '';
 
-    args = args.filter(x => x.name.value === 'filter');
+    args = args.filter(x => x.name.value === filterName);
 
     if (args.length)
     {
@@ -179,7 +182,7 @@ function getFilter(args, level, fkRows, fkReverseRows)
         let filterParts = [];
 
         filter.value.fields
-            .filter(x => x !== undefined && !relatedNames.includes(x.name.value))
+            .filter(x => x !== undefined && !relatedNames.includes(x.name.value) && x.name.value !== orName)
             .map(filterVal =>
             {
                 if (filterVal.value.kind === 'NullValue')
@@ -202,6 +205,25 @@ function getFilter(args, level, fkRows, fkReverseRows)
                     });
                 }
             });
+
+        const orFilterItems = filter.value.fields.filter(x => x !== undefined && x.name.value === orName);
+        if (orFilterItems.length)
+        {
+            const [orFilter] = orFilterItems;
+
+            const graphqlOrFilters = orFilter.value.values.map(x =>
+            {
+                const orArgs = {
+                    name: { value: filterName },
+                    value: x
+                };
+
+                return getFilter([orArgs], level, fkRows, fkReverseRows);
+            });
+
+            const graphqlOrFilter = `(${graphqlOrFilters.join(' OR ')})`;
+            filterParts.push(graphqlOrFilter);
+        }
 
         if (filterParts.length > 0)
         {
