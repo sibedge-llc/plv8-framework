@@ -50,7 +50,8 @@ const operators =
     arrayContains: ' = ANY',
     arrayNotContains: ' != ALL',
     in: ' IN ',
-    isNull: ' IS '
+    isNull: ' IS ',
+    jsquery: '@@'
 };
 
 const idField = 'id';
@@ -115,14 +116,31 @@ function getRelatedName(columnName)
     return columnName.substr(0, columnName.length - idPostfix.length);
 }
 
-function getOperatorPart(filterField, fieldName)
+function getOperatorPart(filterField, fieldName, children)
 {
     const operatorName = filterField.name.value;
     const kind = filterField.value.kind;
     const operator = operators[operatorName];
     let value = filterField.value.value;
 
-    if (operator === operators.arrayContains
+    if (operatorName === 'children')
+    {
+        const filterParts = [];
+
+        filterField.value.fields.map(f =>
+        {
+            const newChildren = children ? [...children] : [];
+            newChildren.push(f.name.value);
+
+            f.value.fields.map(filterField =>
+            {
+                filterParts.push(getOperatorPart(filterField, fieldName, newChildren));
+            });
+        })
+        
+        return filterParts.join(' AND ');
+    }
+    else if (operator === operators.arrayContains
            || operator === operators.arrayNotContains)
     {
         return `${value}${operator}(${fieldName})`;
@@ -153,10 +171,28 @@ function getOperatorPart(filterField, fieldName)
             .map(x => x.kind === 'StringValue' ? `'${x.value}'` : x.value)
             .join(', ')})`;
     }
+    else if (operator === operators.jsquery)
+    {
+        value = `'${value}'::jsquery`;
+    }
     else if (kind === 'StringValue')
     {
         value = `'${filterField.value.value}'`;
-    }    
+    }
+
+    if (children && children.length)
+    {
+        const childrenItems = children.map(x => `'${x}'`);
+        const childOperator = '->';
+        const lastChildOperator = (operator === operators.jsquery) ? childOperator : '->>';
+
+        for (let i = 0; i < children.length - 1; i++)
+        {
+            fieldName = `${fieldName}${childOperator}${childrenItems[i]}`;
+        }
+
+        fieldName = `${fieldName}${lastChildOperator}${childrenItems[children.length - 1]}`;
+    }
 
     return `${fieldName}${operator}${value}`;
 }
