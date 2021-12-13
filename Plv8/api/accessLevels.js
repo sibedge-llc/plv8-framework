@@ -19,8 +19,29 @@ const accessLevels = {
     DEFAULT_KEY: '$default'
 };
 
+const operators =
+{
+    equals: '=',
+    notEquals: '!=',
+    less: '<',
+    greater: '>',
+    lessOrEquals: '<=',
+    greaterOrEquals: '>=',
+    contains: ' ILIKE ',
+    notContains: ' NOT ILIKE ',
+    starts: ' ILIKE ',
+    ends: ' ILIKE ',
+    equalsNoCase: ' ILIKE ',
+    arrayContains: ' = ANY',
+    arrayNotContains: ' != ALL',
+    in: ' IN ',
+    isNull: ' IS ',
+    jsquery: '@@'
+};
+
 exports.accessLevels = accessLevels;
 exports.userField = userField;
+exports.operators = operators;
 
 function getTableLevels (tableName, authInfo)
 {
@@ -116,3 +137,51 @@ exports.getWriteAuthInfo = function(tableName, authInfo, user)
 }
 
 exports.authQuery = 'SELECT * FROM graphql.authorize;';
+
+exports.getOperatorValue = function(operatorName, value, values, kind)
+{
+    const operator = operators[operatorName];
+
+    if (operatorName === 'starts')
+    {
+        return `'${value}%'`;
+    }
+    else if (operatorName === 'ends')
+    {
+        return `'%${value}'`;
+    }
+    else if (operatorName === 'equalsNoCase')
+    {
+        return `'${value}'`;
+    }
+    else if (operator === operators.contains || operator === operators.notContains)
+    {
+        return `'%${value}%'`;
+    }
+    else if (operator === operators.isNull)
+    {
+        return `${value ? '' : 'NOT '}NULL`;
+    }
+    else if (operator === operators.in)
+    {
+        return `(${values
+            .map(x => x.kind === 'StringValue' ? `'${x.value}'` : x.value)
+            .join(', ')})`;
+    }
+    else if (operator === operators.jsquery)
+    {
+        return `'${value}'::jsquery`;
+    }
+    else if (kind === 'StringValue')
+    {
+        return `'${value}'`;
+    }
+
+    return value;
+}
+
+exports.isArrayOperator = function(operator)
+{
+    return operator === operators.arrayContains
+        || operator === operators.arrayNotContains;
+}

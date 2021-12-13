@@ -34,26 +34,6 @@ else if (schema.length > 0)
     schema += '.';
 }
 
-const operators =
-{
-    equals: '=',
-    notEquals: '!=',
-    less: '<',
-    greater: '>',
-    lessOrEquals: '<=',
-    greaterOrEquals: '>=',
-    contains: ' ILIKE ',
-    notContains: ' NOT ILIKE ',
-    starts: ' ILIKE ',
-    ends: ' ILIKE ',
-    equalsNoCase: ' ILIKE ',
-    arrayContains: ' = ANY',
-    arrayNotContains: ' != ALL',
-    in: ' IN ',
-    isNull: ' IS ',
-    jsquery: '@@'
-};
-
 const idField = 'id';
 const idPostfix = '_id';
 const aggPostfix = '_agg';
@@ -120,7 +100,7 @@ function getOperatorPart(filterField, fieldName, children)
 {
     const operatorName = filterField.name.value;
     const kind = filterField.value.kind;
-    const operator = operators[operatorName];
+    const operator = api.operators[operatorName];
     let value = filterField.value.value;
 
     if (operatorName === 'children')
@@ -140,51 +120,20 @@ function getOperatorPart(filterField, fieldName, children)
         
         return filterParts.join(' AND ');
     }
-    else if (operator === operators.arrayContains
-           || operator === operators.arrayNotContains)
+    else if (api.isArrayOperator(operator))
     {
         return `${value}${operator}(${fieldName})`;
     }
-    else if (operatorName === 'starts')
+    else
     {
-        value = `'${filterField.value.value}%'`;
-    }
-    else if (operatorName === 'ends')
-    {
-        value = `'%${filterField.value.value}'`;
-    }
-    else if (operatorName === 'equalsNoCase')
-    {
-        value = `'${filterField.value.value}'`;
-    }
-    else if (operator === operators.contains || operator === operators.notContains)
-    {
-        value = `'%${filterField.value.value}%'`;
-    }
-    else if (operator === operators.isNull)
-    {
-        value = `${value ? '' : 'NOT '}NULL`;
-    }
-    else if (operator === operators.in)
-    {
-        value = `(${filterField.value.values
-            .map(x => x.kind === 'StringValue' ? `'${x.value}'` : x.value)
-            .join(', ')})`;
-    }
-    else if (operator === operators.jsquery)
-    {
-        value = `'${value}'::jsquery`;
-    }
-    else if (kind === 'StringValue')
-    {
-        value = `'${filterField.value.value}'`;
-    }
+        value = api.getOperatorValue(operatorName, value, filterField.value.values, kind);
+    } 
 
     if (children && children.length)
     {
         const childrenItems = children.map(x => `'${x}'`);
         const childOperator = '->';
-        const lastChildOperator = (operator === operators.jsquery) ? childOperator : '->>';
+        const lastChildOperator = (operator === api.operators.jsquery) ? childOperator : '->>';
 
         for (let i = 0; i < children.length - 1; i++)
         {
