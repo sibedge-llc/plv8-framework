@@ -46,11 +46,16 @@ function isString(val)
 function getAuthInfo(tableName)
 {
     return api.getWriteAuthInfo(tableName, authInfo, user);
-}    
+}
 
-function getFieldsSql(entity)
+function getFields(entity)
 {
-    const ret = `(${Object.keys(entity).map(x => plv8.quote_ident(x)).join(', ')})`;
+    return Object.keys(entity).map(x => plv8.quote_ident(x));
+}
+
+function getFieldsSql()
+{
+    const ret = `(${fields.join(', ')})`;
     return ret;
 }
 
@@ -71,11 +76,14 @@ function getValueSql(value)
     return plv8.quote_nullable(value);
 }
 
-function getValuesSql(entity)
+function getValues(entity)
 {
-    const values = Object.keys(entity).map(key => getValueSql(entity[key]));
+    return Object.keys(entity).map(key => getValueSql(entity[key]));
+}
 
-    return `(${values.join(', ')})`;
+function getValuesSql(valuesArr)
+{
+    return `(${valuesArr.join(', ')})`;
 }
 
 function changeUserIdField(entity)
@@ -129,7 +137,7 @@ function createConditionFilter(condition)
     return parts.join(' AND ');
 }
 
-let fields = '';
+let fields = [];
 let values = [];
 const multiMode = Array.isArray(entities);
 const update = upsert && !multiMode;
@@ -137,11 +145,11 @@ const conditionFilter = userId && user.condition;
 
 const { writeAllowed, userFilter } = getAuthInfo(tableName);
 
-const userWhere = (userFilter && (upsert || del))
+const userWhere = userFilter
     ? ` AND ${api.userField}=${userId}`
     : '';
 
-const conditionWhere = (conditionFilter && (upsert || del))
+const conditionWhere = conditionFilter
     ? ` AND ${createConditionFilter(user.condition)}`
     : '';
 
@@ -154,6 +162,12 @@ function getUpdateExpr(entity)
     const where = idKeys.map(x => `${plv8.quote_ident(x)}=${getValueSql(entity[x])}`).join(' AND ');
 
     return `UPDATE ${fullTableName} SET ${updateExpr} WHERE ${where}${userWhere}${conditionWhere}`;
+}
+
+function getInsertSql()
+{
+    const valuesRows = values.map(x => getValuesSql(x));
+    return `INSERT INTO ${fullTableName} ${getFieldsSql()} VALUES ${valuesRows.join(', ')}`;
 }
 
 if (userFilter && !del)
@@ -183,14 +197,14 @@ else if (multiMode)
     }
     else
     {
-        fields = getFieldsSql(entities[0]);
-        values = entities.map(x => getValuesSql(x));
+        fields = getFields(entities[0]);
+        values = entities.map(x => getValues(x));
     }
 }
 else
 {
-    fields = getFieldsSql(entities);
-    values.push(getValuesSql(entities));
+    fields = getFields(entities);
+    values.push(getValues(entities));
 }
 
 if (!writeAllowed)
@@ -199,7 +213,8 @@ if (!writeAllowed)
 }
 else if (values.length > 0)
 {
-    let sql = `INSERT INTO ${fullTableName} ${fields} VALUES ${values.join(', ')}`;
+    let sql = '';
+    let sqlReturning = '';
     let needExecute = true;
 
     if (idKeys && idKeys.length)
@@ -233,6 +248,7 @@ else if (values.length > 0)
         else
         {
             const keys = idKeys.map(x => plv8.quote_ident(x)).join(', ');
+            sql = getInsertSql();
         
             if (upsert)
             {
@@ -243,9 +259,35 @@ else if (values.length > 0)
                 sql += ` ON CONFLICT (${keys}) DO UPDATE SET ${updateExpr}`;
             }
 
-            sql += ` RETURNING ${keys}`;
+            sqlReturning = ` RETURNING ${keys}`;
         }
     }
+
+    if (!upsert && !del)
+    {
+        if (conditionFilter)
+        {
+            const cteBody = values
+                .map(row => `SELECT ${row.map((v, i) => `${v} AS ${fields[i]}`).join(', ')}`)
+                .join(' UNION ALL ');
+
+            const cte = `WITH s AS (${cteBody})`;
+            let condition = `${userWhere}${conditionWhere}`;
+
+            if (condition.startsWith(' AND '))
+            {
+                condition = ` WHERE ${condition.substring(5)}`;
+            }
+
+            sql = `${cte} INSERT INTO ${fullTableName} ${getFieldsSql()} SELECT * FROM s${condition}`;
+        }
+        else
+        {
+            sql = getInsertSql();
+        }
+    }
+
+    sql += sqlReturning;
 
     if (needExecute)
     {
