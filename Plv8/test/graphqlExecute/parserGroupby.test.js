@@ -1,5 +1,4 @@
 const appRoot = require('app-root-path');
-const { con } = require('sqlite-sync');
 const testHelper = require(appRoot + '/helpers/testHelper.js');
 
 test('Mock, Group by "role" should be used', () =>

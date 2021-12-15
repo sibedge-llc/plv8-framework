@@ -43,6 +43,7 @@ const aggFuncPrefix = (aggPostfix[0] === '_') ? '_' : '';
 const aggDict = {};
 aggFunctions.map(x => aggDict[x + aggFuncPrefix] = `${x.toUpperCase()}($)`);
 aggDict['distinct' + aggFuncPrefix] = `array_agg(DISTINCT($))`;
+const stringValueKind = 'StringValue';
 
 const aliases = plv8.execute('SELECT * FROM graphql.aliases;');
 
@@ -126,7 +127,14 @@ function getOperatorPart(filterField, fieldName, children)
     }
     else
     {
-        value = api.getOperatorValue(operatorName, value, filterField.value.values, kind);
+        const values = filterField.value.values
+            ? filterField.value.values.map(x => ({
+                isString: x.kind === stringValueKind,
+                value: x.value
+            }))
+            : [];
+
+        value = api.getOperatorValue(operatorName, value, values, kind === stringValueKind);
     } 
 
     if (children && children.length)
@@ -176,7 +184,7 @@ function getFilter(args, level, fkRows, fkReverseRows)
                 }
                 else if (filterVal.value.kind !== 'ObjectValue')
                 {
-                    filterParts.push((filterVal.value.kind === 'StringValue')
+                    filterParts.push((filterVal.value.kind === stringValueKind)
                         ? `a${level}."${filterVal.name.value}"='${filterVal.value.value}'`
                         : `a${level}."${filterVal.name.value}"=${filterVal.value.value}`);
                 }

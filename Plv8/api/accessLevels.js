@@ -138,7 +138,7 @@ exports.getWriteAuthInfo = function(tableName, authInfo, user)
 
 exports.authQuery = 'SELECT * FROM graphql.authorize;';
 
-exports.getOperatorValue = function(operatorName, value, values, kind)
+exports.getOperatorValue = function(operatorName, value, values, isString)
 {
     const operator = operators[operatorName];
 
@@ -165,14 +165,14 @@ exports.getOperatorValue = function(operatorName, value, values, kind)
     else if (operator === operators.in)
     {
         return `(${values
-            .map(x => x.kind === 'StringValue' ? `'${x.value}'` : x.value)
+            .map(x => x.isString ? `'${x.value}'` : x.value)
             .join(', ')})`;
     }
     else if (operator === operators.jsquery)
     {
         return `'${value}'::jsquery`;
     }
-    else if (kind === 'StringValue')
+    else if (isString)
     {
         return `'${value}'`;
     }

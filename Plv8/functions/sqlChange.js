@@ -38,6 +38,11 @@ const fullTableName = schema
     ? `${plv8.quote_ident(schema)}.${plv8.quote_ident(tableName)}`
     : plv8.quote_ident(tableName);
 
+function isString(val)
+{
+    (typeof val === 'string' || val instanceof String)
+}
+
 function getAuthInfo(tableName)
 {
     return api.getWriteAuthInfo(tableName, authInfo, user);
@@ -78,15 +83,66 @@ function changeUserIdField(entity)
     entity[api.userField] = userId;
 }
 
+function createConditionFilter(condition)
+{
+    const orName = 'or';
+
+    const parts = Object.keys(condition)
+        .filter(key => key !== orName)
+        .map(field =>
+    {
+        const filter = condition[field];
+        const filterParts = Object.keys(filter).map(operatorName =>
+        {
+            const operator = api.operators[operatorName];
+            const value = filter[operatorName];
+
+            const values = Array.isArray(value)
+                ? value.map(x => ({ isString: isString(x), value: x }))
+                : [];
+
+            if (api.isArrayOperator(operator))
+            {
+                return `${value}${operator}(${field})`;
+            }
+            else
+            {
+                const sqlValue = api.getOperatorValue(operatorName, value, values, isString(value));
+                return `${field}${operator}${sqlValue}`;
+            }
+        });
+
+        return filterParts.join(' AND ');
+    });
+
+    if (orName in condition)
+    {
+        const orFilters = condition[orName].map(x =>
+        {
+            return createConditionFilter(x);
+        });
+
+        const orFilter = `(${orFilters.join(' OR ')})`;
+        parts.push(orFilter);
+    }
+
+    return parts.join(' AND ');
+}
+
 let fields = '';
 let values = [];
 const multiMode = Array.isArray(entities);
 const update = upsert && !multiMode;
+const conditionFilter = userId && user.condition;
 
 const { writeAllowed, userFilter } = getAuthInfo(tableName);
 
 const userWhere = (userFilter && (upsert || del))
     ? ` AND ${api.userField}=${userId}`
+    : '';
+
+const conditionWhere = (conditionFilter && (upsert || del))
+    ? ` AND ${createConditionFilter(user.condition)}`
     : '';
 
 function getUpdateExpr(entity)
@@ -97,7 +153,7 @@ function getUpdateExpr(entity)
 
     const where = idKeys.map(x => `${plv8.quote_ident(x)}=${getValueSql(entity[x])}`).join(' AND ');
 
-    return `UPDATE ${fullTableName} SET ${updateExpr} WHERE ${where}${userWhere}`;
+    return `UPDATE ${fullTableName} SET ${updateExpr} WHERE ${where}${userWhere}${conditionWhere}`;
 }
 
 if (userFilter && !del)
@@ -154,7 +210,7 @@ else if (values.length > 0)
         {
             sql = getUpdateExpr(entity);
         }
-        else if (upsert && userFilter)
+        else if (upsert && (userFilter || conditionFilter))
         {
             const ret = [];
             entities.map(e =>
@@ -204,7 +260,7 @@ else if (del && idKeys && idKeys.length)
         .map(e => idKeys.map(x => `(${plv8.quote_ident(x)}=${getValueSql(e[x])})`).join(' AND '))
         .join(' OR ');
 
-    sql = `DELETE FROM ${fullTableName} WHERE (${where})${userWhere}`;
+    sql = `DELETE FROM ${fullTableName} WHERE (${where})${userWhere}${conditionWhere}`;
 
     plv8.elog(NOTICE, sql);
     exports.ret = plv8.execute(sql);
