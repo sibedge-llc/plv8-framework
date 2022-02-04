@@ -1,30 +1,28 @@
-let apiFunctions = [];
-/*API*/
-apiFunctions = ['accessLevels'];
+const configuration = {
+    declare: {
+        name: 'plv8.sql_change',
+        args: {
+            tableName: 'text',
+            entities: 'jsonb',
+            idKeys: 'text[]',
+            operation: 'text',
+            schema: 'text',
+            user: 'jsonb'
+        }
+    },
+    apiFunctions: ['accessLevels']
+};
 
-/*SQL
-DROP FUNCTION IF EXISTS plv8.sql_change;
-CREATE OR REPLACE FUNCTION plv8.sql_change(
-  "tableName" text,
-  entities jsonb,
-  "idKeys" text[],
-  operation text,
-  schema text,
-  "user" jsonb)
-RETURNS jsonb
-SQL*/
-
+/*LOCAL*/
 const NOTICE = 'NOTICE';
 
 const top = require("../helpers/top.js");
 const plv8 = require(top.data.plv8);
 const args = require(top.data.funcArgs.sqlChange);
 
-const { tableName, idKeys, operation, schema, user } = args;
-let entities = args.entities;
+const { tableName, entities, idKeys, operation, schema, user } = args;
 
-let api = {};
-apiFunctions.map(f => api = { ...api, ...require(`../api/${f}.js`) });
+const api = top.createApi(configuration);
 
 /*BEGIN*/
 const isAdmin = !user || !user.isAnonymous && !user.userId;

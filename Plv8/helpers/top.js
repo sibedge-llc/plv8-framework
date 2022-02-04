@@ -4,3 +4,10 @@ let data = {
 }
 
 exports.data = data;
+
+exports.createApi = function (config)
+{
+    let api = {};
+    config.apiFunctions.map(f => api = { ...api, ...require(`../api/${f}.js`) });
+    return api;
+}

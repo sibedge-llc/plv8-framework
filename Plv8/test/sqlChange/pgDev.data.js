@@ -8,4 +8,4 @@ exports.entities =
 exports.tableName = "airports_data";
 exports.idKeys = ["id"];
 exports.operation = 'delete';
-exports.schema = 'bookings';
+exports.schema = 'public';

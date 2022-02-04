@@ -2,9 +2,7 @@ const db = require ("./helpers/plv8PgNative.js");
 const fs = require('fs');
 
 const beginMark = "/*BEGIN*/";
-const sqlOpenMark = "/*SQL";
-const sqlCloseMark = "SQL*/";
-const apiMark = "/*API*/";
+const localMark = "/*LOCAL*/";
 const functionsFolder = "./functions/";
 
 const args = process.argv.slice(2);
@@ -22,14 +20,17 @@ String.prototype.replaceAll = function(search, replacement)
     return target.split(search).join(replacement);
 };
 
-function runScript(data, scriptApi, funcName)
+function runScript(data, header, config, scriptApi, funcName)
 {
     console.log(`\n----- Deploying function: ${funcName} -----`);
 
-    const header = data.substr(0, data.indexOf(beginMark));
+    const { name, args } = config.declare;
+    const sqlArgs = args
+        ? Object.keys(args).map(x => `"${x}" ${args[x]}`)
+        : [];
 
-    let scriptHeader = header.substr(header.indexOf(sqlOpenMark) + sqlOpenMark.length);
-    scriptHeader = scriptHeader.substr(0, scriptHeader.indexOf(sqlCloseMark)) + "AS $$";
+    let scriptHeader = `DROP FUNCTION IF EXISTS ${name};
+CREATE OR REPLACE FUNCTION ${name}(${sqlArgs.join(', ')}) RETURNS jsonb AS $$`;
 
     const scriptBody = data.substr(data.indexOf(beginMark) + beginMark.length)
         .replaceAll("exports.ret =", "return");
@@ -47,26 +48,25 @@ function deployFunc(funcName)
 {
     fs.readFile(`${functionsFolder}${funcName}`, 'utf8', function (err, data)
     {
-        const apiIndex = data.indexOf(apiMark);
+        const header = data.substr(0, data.indexOf(beginMark));
+        const configStr = header.substr(0, header.indexOf(localMark));
+        const expr = 'return ' + configStr.substr(configStr.indexOf('{'));
+        var config = new Function(expr)();
 
-        if (apiIndex >= 0)
+        const { apiFunctions } = config;
+        if (apiFunctions && apiFunctions.length)
         {
-            const apiDeclareStatement = "var api = {};\n\n";
-
-            let scriptApiDeclare = data.substr(apiIndex + apiMark.length);
-            scriptApiDeclare = scriptApiDeclare.substr(0, scriptApiDeclare.indexOf(sqlOpenMark));
-
-            let apiFunctions = [];
-            eval(scriptApiDeclare);
-
+            const apiDeclareStatement = "const api = {};\n\n";
             const pathList = apiFunctions.map(item => `./api/${item}.js`);
 
             Promise.all(pathList.map(fileName => readFromFile(fileName)))
                 .then(scripts => runScript(data,
+                    header,
+                    config,
                     apiDeclareStatement + scripts.map(s => s.replaceAll("exports.", "api.")).join("\n\n") + '\n',
                     funcName));
         }
-        else runScript(data, '', funcName);
+        else runScript(data, header, config, '', funcName);
     })
 }
 

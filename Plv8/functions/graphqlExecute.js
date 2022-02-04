@@ -1,13 +1,16 @@
-let apiFunctions = [];
-/*API*/
-apiFunctions = ['gqlquery', 'accessLevels'];
+const configuration = {
+    declare: {
+        name: 'graphql.execute',
+        args: {
+            query: 'text',
+            schema: 'text',
+            user: 'jsonb'
+        }
+    },
+    apiFunctions: ['gqlquery', 'accessLevels']
+};
 
-/*SQL
-DROP FUNCTION IF EXISTS graphql.execute;
-CREATE OR REPLACE FUNCTION graphql.execute(query text, schema text, "user" jsonb)
-RETURNS JSONB
-SQL*/
-
+/*LOCAL*/
 const NOTICE = 'NOTICE';
 
 const top = require("../helpers/top.js");
@@ -17,8 +20,7 @@ const args = require(top.data.funcArgs.graphqlExecute);
 const { query, user } = args;
 let { schema } = args;
 
-let api = {};
-apiFunctions.map(f => api = { ...api, ...require(`../api/${f}.js`) });
+const api = top.createApi(configuration);
 
 /*BEGIN*/
 const isAdmin = !user || !user.isAnonymous && !user.userId;
