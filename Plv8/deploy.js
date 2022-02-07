@@ -1,9 +1,6 @@
 const db = require ("./helpers/plv8PgNative.js");
+const utils = require("./helpers/utils.js");
 const fs = require('fs');
-
-const beginMark = "/*BEGIN*/";
-const localMark = "/*LOCAL*/";
-const functionsFolder = "./functions/";
 
 const args = process.argv.slice(2);
 const functionName = args[0];
@@ -20,7 +17,7 @@ String.prototype.replaceAll = function(search, replacement)
     return target.split(search).join(replacement);
 };
 
-function runScript(data, header, config, scriptApi, funcName)
+function runScript(data, config, scriptApi, funcName)
 {
     console.log(`\n----- Deploying function: ${funcName} -----`);
 
@@ -32,7 +29,7 @@ function runScript(data, header, config, scriptApi, funcName)
     let scriptHeader = `DROP FUNCTION IF EXISTS ${name};
 CREATE OR REPLACE FUNCTION ${name}(${sqlArgs.join(', ')}) RETURNS jsonb AS $$`;
 
-    const scriptBody = data.substr(data.indexOf(beginMark) + beginMark.length)
+    const scriptBody = data.substr(data.indexOf(utils.beginMark) + utils.beginMark.length)
         .replaceAll("exports.ret =", "return");
 
     const script = `${scriptHeader}
@@ -46,12 +43,9 @@ $$ LANGUAGE plv8;`;
 
 function deployFunc(funcName)
 {
-    fs.readFile(`${functionsFolder}${funcName}`, 'utf8', function (err, data)
+    fs.readFile(`${utils.functionsFolder}${funcName}`, 'utf8', function (err, data)
     {
-        const header = data.substr(0, data.indexOf(beginMark));
-        const configStr = header.substr(0, header.indexOf(localMark));
-        const expr = 'return ' + configStr.substr(configStr.indexOf('{'));
-        var config = new Function(expr)();
+        var config = utils.getConfiguration(data);
 
         const { apiFunctions } = config;
         if (apiFunctions && apiFunctions.length)
@@ -61,12 +55,11 @@ function deployFunc(funcName)
 
             Promise.all(pathList.map(fileName => readFromFile(fileName)))
                 .then(scripts => runScript(data,
-                    header,
                     config,
                     apiDeclareStatement + scripts.map(s => s.replaceAll("exports.", "api.")).join("\n\n") + '\n',
                     funcName));
         }
-        else runScript(data, header, config, '', funcName);
+        else runScript(data, config, '', funcName);
     })
 }
 
@@ -76,7 +69,7 @@ if (functionName)
 }
 else
 {
-    fs.readdirSync(functionsFolder).forEach(file => {
+    fs.readdirSync(utils.functionsFolder).forEach(file => {
         deployFunc(file);
     });
 }
