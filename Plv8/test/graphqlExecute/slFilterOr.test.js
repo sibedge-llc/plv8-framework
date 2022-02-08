@@ -14,7 +14,7 @@ test('Graphql query with filter (OR condition) test', () =>
     sqlite.run(setup.createSql());
     sqlite.close();    
 
-    const result = testHelper.runSqlite('graphqlExecute', __filename);    
+    const result = testHelper.runSqlite('graphqlExecute', __filename);
     const items = result.data.section;
     expect(items.length).toBe(2);
 
