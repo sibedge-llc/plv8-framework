@@ -90,7 +90,7 @@ const testFolderPath = `${utils.testFolder}${options.name}/`;
 createFolder(testFolderPath);
 
 const testFilePath = `${testFolderPath}pgDev.data.js`;
-const testLines = options.args.map(x => `exports.${x} = null;`);
-const testContent = testLines.join('\n') + '\n';
+const testLines = options.args?.map(x => `exports.${x} = null;`);
+const testContent = (testLines?.join('\n') ?? '') + '\n';
 
 fs.writeFile(testFilePath, testContent, (err, _data) => console.log(err ?? `${testFilePath} successfully created`));

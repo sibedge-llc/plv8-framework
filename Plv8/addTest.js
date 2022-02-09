@@ -151,9 +151,14 @@ fs.readFile(`${utils.functionsFolder}${options.func}.js`, 'utf8', function (err,
     }
 
     var config = utils.getConfiguration(data);
-    const args = Object.keys(config.declare.args).map(x => `exports.${x} = null;`);
 
-    const testContent = args.join('\n') + '\n';
+    let testContent = '\n';
+    if (config.declare.args)
+    {
+        const args = Object.keys(config.declare.args).map(x => `exports.${x} = null;`);
+        testContent = args.join('\n') + '\n';
+    }
+    
     const testFilePath = `${path}.data.js`;
     fs.writeFile(testFilePath, testContent, (err, _data) => console.log(err ?? `${testFilePath} successfully created`));
 });
