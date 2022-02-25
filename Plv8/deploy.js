@@ -5,8 +5,8 @@ const fs = require('fs');
 const args = process.argv.slice(2);
 const functionName = args[0];
 
-const readFromFile = (file) => new Promise((resolve, reject) =>
-    fs.readFile(file, 'utf8', (err, data) => {
+const readFromFile = (file) => new Promise((resolve, _reject) =>
+    fs.readFile(file, 'utf8', (_err, data) => {
         resolve(data);
     })
 );
@@ -48,7 +48,7 @@ function deployFunc(funcName)
         var config = utils.getConfiguration(data);
 
         const { apiFunctions } = config;
-        if (apiFunctions && apiFunctions.length)
+        if (apiFunctions?.length)
         {
             const apiDeclareStatement = "const api = {};\n\n";
             const pathList = apiFunctions.map(item => `./api/${item}.js`);

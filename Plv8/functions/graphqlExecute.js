@@ -161,7 +161,7 @@ function getFilter(args, level, fkRows, fkReverseRows)
     const filterName = 'filter';
     const orName = 'or';
 
-    fkReverseRows = fkReverseRows ? fkReverseRows : [];
+    fkReverseRows = fkReverseRows ?? [];
     const relatedNames = fkRows
        .filter(x => canBeRelated(x.column_name))
        .map(x => getRelatedName(x.column_name))
@@ -177,7 +177,7 @@ function getFilter(args, level, fkRows, fkReverseRows)
         let filterParts = [];
 
         filter.value.fields
-            .filter(x => x !== undefined && !relatedNames.includes(x.name.value) && x.name.value !== orName)
+            .filter(x => x && !relatedNames.includes(x.name.value) && x.name.value !== orName)
             .map(filterVal =>
             {
                 if (filterVal.value.kind === 'NullValue')
@@ -201,7 +201,7 @@ function getFilter(args, level, fkRows, fkReverseRows)
                 }
             });
 
-        const orFilterItems = filter.value.fields.filter(x => x !== undefined && x.name.value === orName);
+        const orFilterItems = filter.value.fields.filter(x => x?.name?.value === orName);
         if (orFilterItems.length)
         {
             const [orFilter] = orFilterItems;
@@ -269,7 +269,7 @@ function getAggFilter(args, level)
         let filterParts = [];
 
         filter.value.fields
-            .filter(x => x !== undefined)
+            .filter(x => x)
             .map(filterVal =>
             {
                 const aggField = getAggFieldSql(filterVal.name.value);
@@ -306,7 +306,7 @@ function getRelationFilter(args, fkRows)
         const [filter] = args;
 
         filter.value.fields
-            .filter(x => x !== undefined && relatedNames.includes(x.name.value))
+            .filter(x => x && relatedNames.includes(x.name.value))
             .map(x => ret[x.name.value] = x.value.value);
     }
 
@@ -327,7 +327,7 @@ function getRelationReverseFilter(args, fkRows, level)
         const [filter] = args;
 
         filter.value.fields
-            .filter(x => x !== undefined && relatedNames.includes(x.name.value))
+            .filter(x => x && relatedNames.includes(x.name.value))
             .map(x => ret[x.name.value] = x.value.value);
     }
 
@@ -466,9 +466,9 @@ function viewTable(selection, tableName, result, where, level)
                 && (tableKeys.includes(item.table_name) || isAggField);
         });
 
-    const fkFields = fkRows.map(function (a, index) { return a.column_name });
+    const fkFields = fkRows.map(a => a.column_name);
     const allFields = fkFields.concat(tableKeys);
-    const allFieldsFiltered = allFields.filter(function (item, pos) { return allFields.indexOf(item) === pos });
+    const allFieldsFiltered = allFields.filter((item, pos) => allFields.indexOf(item) === pos);
 
     if (userFilter)
     {
@@ -491,7 +491,7 @@ function viewTable(selection, tableName, result, where, level)
     let limit = '';
 
     //-- grapghql filters
-    if (selection.arguments !== undefined)
+    if (selection.arguments)
     {
         qraphqlFilter = getFilter(selection.arguments, level, fkRows, fkReverseRows);
         if (level === 1)
@@ -552,7 +552,7 @@ function viewTable(selection, tableName, result, where, level)
             ? rows.map(a =>
             {
                 const alias = usedAliases.find(x => x.alias === a.column_name);
-                return (alias !== undefined)
+                return alias
                     ? `a${level}."${alias.column_name}" AS "${alias.alias}"`
                     : `a${level}."${a.column_name}"`;
             })
@@ -592,7 +592,7 @@ function viewTable(selection, tableName, result, where, level)
 
                 if (fieldNameLower === getRelatedName(fkRow.column_name).toLowerCase())
                 {
-                    let ids = items.map(a => a[fkRow.column_name]).filter(item => item !== null).filter(distinct);
+                    let ids = items.map(a => a[fkRow.column_name]).filter(item => item).filter(distinct);
                     if (ids.length > 0)
                     {
                         if (typeof ids[0] === 'string')
@@ -654,9 +654,7 @@ function viewTable(selection, tableName, result, where, level)
                     }
 
                     const alias = aliases.find(x => x.alias === fkReverseRow.column_name);
-                    const reverse_column_name = (alias !== undefined)
-                        ? alias.column_name
-                        : fkReverseRow.column_name;
+                    const reverse_column_name = alias?.column_name ?? fkReverseRow.column_name;
 
                     let innerWhere =
                         ` JOIN ${schema}"${tableName}" a${level} ON a${level}."${fkReverseRow.foreign_column_name}"=a${level + 1}."${reverse_column_name}" 
@@ -676,8 +674,7 @@ function viewTable(selection, tableName, result, where, level)
                         innerWhere += ` ${sqlOperator} a${level}."${idField}" IN(${ids.join(', ')})`;
                     }
 
-                    if (field.selectionSet !== undefined
-                        && field.selectionSet.selections !== undefined
+                    if (field.selectionSet?.selections
                         && field.selectionSet.selections.filter(x => x.name.value === fkReverseRow.column_name).length < 1)
                     {
                         const newSelection = {
@@ -694,11 +691,11 @@ function viewTable(selection, tableName, result, where, level)
 
                     const subItems = subResult[fkReverseRow.table_name];
 
-                    if (subItems !== undefined)
+                    if (subItems)
                     {
                         if (subItems.length)
                         {
-                            subItems.map((a, index) =>
+                            subItems.map(a =>
                             {
                                 subResultOrdered[a[fkReverseRow.column_name]] = subResultOrdered[a[fkReverseRow.column_name]] || [];
                                 subResultOrdered[a[fkReverseRow.column_name]].push(a);
@@ -754,7 +751,7 @@ function viewTable(selection, tableName, result, where, level)
 
                     items.map(item =>
                     {
-                        if (aggResultOrdered[item[idField]] !== undefined)
+                        if (aggResultOrdered[item[idField]])
                         {
                             item[field.name.value] = aggResultOrdered[item[idField]];
                         }
@@ -777,7 +774,7 @@ function viewTable(selection, tableName, result, where, level)
     result[tableName] = items;
 }
 
-function executeAgg(selection, tableName, result, where, level, aggColumn)
+function executeAgg(selection, tableName, _result, where, level, aggColumn)
 {
     const realTableName = tableName.substr(0, tableName.length - aggPostfix.length);
     const useGroupBy = aggColumn.length > 0;
@@ -830,11 +827,11 @@ function executeAgg(selection, tableName, result, where, level, aggColumn)
     
     const fkRowsAll = getFkData(realTableName);
 
-    const qraphqlFilter = (selection.arguments !== undefined)
+    const qraphqlFilter = selection.arguments
         ? getFilter(selection.arguments, level, fkRowsAll, fkRowsAll)
         : '';
 
-    const qraphqlAggFilter = (selection.arguments !== undefined)
+    const qraphqlAggFilter = selection.arguments
         ? getAggFilter(selection.arguments, level)
         : '';
 

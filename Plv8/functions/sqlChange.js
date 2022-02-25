@@ -46,9 +46,9 @@ function getAuthInfo(tableName)
     return api.getWriteAuthInfo(tableName, authInfo, user);
 }
 
-function getFields(entity)
+function getFields(keys)
 {
-    return Object.keys(entity).map(x => plv8.quote_ident(x));
+    return keys.map(x => plv8.quote_ident(x));
 }
 
 function getFieldsSql()
@@ -74,9 +74,9 @@ function getValueSql(value)
     return plv8.quote_nullable(value);
 }
 
-function getValues(entity)
+function getValues(entity, keys)
 {
-    return Object.keys(entity).map(key => getValueSql(entity[key]));
+    return keys.map(key => getValueSql(entity[key]));
 }
 
 function getValuesSql(valuesArr)
@@ -168,6 +168,28 @@ function getInsertSql()
     return `INSERT INTO ${fullTableName} ${getFieldsSql()} VALUES ${valuesRows.join(', ')}`;
 }
 
+function addFilterFields(entity)
+{
+    Object.keys(conditionFilter).forEach(key =>
+    {
+        const conditions = conditionFilter[key];
+        const condKeys = Object.keys(conditions);
+
+        if (condKeys.length === 1 && !(key in entity))
+        {
+            const [operator] = condKeys;
+            if (operator === 'equals')
+            {
+                entity[key] = conditions[operator];
+            }
+            else if (operator === 'isNull')
+            {
+                entity[key] = null;
+            }
+        }
+    });
+}
+
 if (userFilter && !del)
 {
     if (multiMode)
@@ -177,6 +199,18 @@ if (userFilter && !del)
     else
     {
         changeUserIdField(entities);
+    }
+}
+
+if (!upsert && !del && conditionFilter)
+{
+    if (multiMode)
+    {
+        entities.forEach(e => addFilterFields(e));
+    }
+    else
+    {
+        addFilterFields(entities);
     }
 }
 
@@ -195,14 +229,16 @@ else if (multiMode)
     }
     else
     {
-        fields = getFields(entities[0]);
-        values = entities.map(x => getValues(x));
+        const keys = Object.keys(entities[0]);
+        fields = getFields(keys);
+        values = entities.map(x => getValues(x, keys));
     }
 }
 else
 {
-    fields = getFields(entities);
-    values.push(getValues(entities));
+    const keys = Object.keys(entities);
+    fields = getFields(keys);
+    values.push(getValues(entities, keys));
 }
 
 if (!writeAllowed)
