@@ -71,6 +71,11 @@ function getValueSql(value)
         return 'null';
     }
 
+    if (type === 'object')
+    {
+        value = JSON.stringify(value);
+    }
+
     return plv8.quote_nullable(value);
 }
 
