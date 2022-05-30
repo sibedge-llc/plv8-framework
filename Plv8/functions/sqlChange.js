@@ -71,9 +71,9 @@ function getValueSql(value)
         return 'null';
     }
 
-    if (type === 'object')
+    if (type === 'object' || type === 'array')
     {
-        value = JSON.stringify(value);
+        return `${plv8.quote_nullable(JSON.stringify(value))}::jsonb`;
     }
 
     return plv8.quote_nullable(value);
