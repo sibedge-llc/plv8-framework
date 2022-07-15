@@ -56,13 +56,9 @@ function getAuthInfo(tableName, level)
     return api.getAuthInfo(tableName, level, authInfo, user, idField);
 }
 
-function getUserWhere(otherWhereExist, userFilterField, level, defaultWhere)
+function getUserWhere(userFilterField, level)
 {
-    const operator = otherWhereExist
-        ? ' AND'
-        : (defaultWhere ? ' WHERE' : '');
-
-    return `${operator} a${level}."${userFilterField}"=${userId}`;
+    return `a${level}."${userFilterField}"=${userId}`;
 }
 
 function getFkData(tableName)
@@ -345,7 +341,8 @@ function processInheritFilters(selection, fkRows, otherFilter, level, tableName)
 
     ret.relationFilterKeys = Object.keys(ret.relationFilter);
     ret.relFilter = '';
-    ret.relWhere = '';
+
+    const whereArr = [];
    
     ret.relationFilterKeys
         .filter(x => ret.relationFilter[x])
@@ -363,7 +360,6 @@ function processInheritFilters(selection, fkRows, otherFilter, level, tableName)
 
             const [fkRow] = foundFkRows;
 
-            const relOperator = (otherFilter.length || ret.relFilter.length) ? ' AND' : '';
             ret.relFilter += ` JOIN ${schema}"${fkRow.foreign_table_name}" a${level + 1} ON a${level}."${fkRow.column_name}"=a${level + 1}."${fkRow.foreign_column_name}"`;
 
             const [selectionField] = table.selections
@@ -373,24 +369,21 @@ function processInheritFilters(selection, fkRows, otherFilter, level, tableName)
 
             const authInfo = getAuthInfo(fkRow.foreign_table_name, level + 1);
 
-            const userWhere = !authInfo.readAllowed ? ' 0' : (authInfo.userFilter
-                ? getUserWhere(false, authInfo.userFilterField, level + 1, false)
-                : '');
+            const userWhere = !authInfo.readAllowed
+                ? ' 0'
+                : (authInfo.userFilter ? getUserWhere(authInfo.userFilterField, level + 1) : '');
 
             if (relGraphqlFilter.length)
             {
-                ret.relWhere += `${relOperator}${relGraphqlFilter}`;
-
-                if (userWhere.length)
-                {
-                    ret.relWhere += ` AND${userWhere}`;
-                }
+                whereArr.push(relGraphqlFilter);
             }
-            else if (userWhere.length)
+            if (userWhere.length)
             {
-                ret.relWhere += `${relOperator}${userWhere}`;
+                whereArr.push(userWhere);
             }
         });
+
+    ret.relWhere = mixWhere(whereArr, false);
 
     return ret;
 }
@@ -418,16 +411,13 @@ function processInheritReverseFilters(selection, fkRows, level)
 
             const authInfo = getAuthInfo(fkRow.table_name, level + 1);
 
-            const userWhere = !authInfo.readAllowed ? ' WHERE 0' : (authInfo.userFilter
-                ? getUserWhere(false, authInfo.userFilterField, level + 1, true)
-                : '');
+            const userWhere = !authInfo.readAllowed
+                ? ' 0'
+                : (authInfo.userFilter ? getUserWhere(authInfo.userFilterField, level + 1) : '');
             
             const relGraphqlFilter = getFilter(selectionField.arguments, level + 1, fkRows);
 
-            const relOperator = userWhere.length ? ' AND' : ' WHERE';
-            const relWhere = userWhere + ((relGraphqlFilter.length)
-                ? `${relOperator}${relGraphqlFilter}`
-                : '');
+            const relWhere = mixWhere([userWhere, relGraphqlFilter], true);
 
             ret.relFilter += ` JOIN (SELECT "${fkRow.column_name}" FROM ${schema}"${fkRow.table_name}" a${level + 1}${relWhere}
                 GROUP BY "${fkRow.column_name}") a${level + 1} 
@@ -437,7 +427,35 @@ function processInheritReverseFilters(selection, fkRows, level)
     return ret;
 }
 
-function viewTable(selection, tableName, result, where, level)
+function createOrderBy(order, isDesc, rows, level)
+{
+    const additionalOrder = order.value.value !== idField
+        && rows.map(x => x.column_name).includes(idField)
+            ? `, a${level}."${idField}"` : "";
+
+    const dotIndex = order.value.value.indexOf(".");
+    const mainOrder = (dotIndex > 0)
+        ? order.value.value.substr(dotIndex + 1)
+        : order.value.value;
+
+    const orderLevel = (dotIndex > 0) ? (level + 1) : level;
+
+    return ` ORDER BY a${orderLevel}."${mainOrder}"${isDesc ? " DESC" : ""}${additionalOrder}`;
+}
+
+function mixWhere(whereArr, addWhereOperator)
+{
+    whereArr = whereArr.filter(x => x?.length);
+
+    if (!whereArr.length)
+    {
+        return "";
+    }
+
+    return `${addWhereOperator ? ' WHERE ' : ''}${whereArr.join(' AND ')}`;
+}
+
+function viewTable(selection, tableName, result, where, join, level)
 {
     // Authorize
     const { readAllowed, userFilter, userFilterField } = getAuthInfo(tableName, level);
@@ -512,22 +530,12 @@ function viewTable(selection, tableName, result, where, level)
         if (orderArgs.length > 0)
         {
             const order = orderArgs[0];
-            
-            const additionalOrder = order.value.value !== idField
-                && rows.map(x => x.column_name).includes(idField)
-                    ? `, a${level}."${idField}"` : "";
-
-            orderBy = ` ORDER BY a${level}."${order.value.value}"${additionalOrder}`;
+            orderBy = createOrderBy(order, false, rows, level);
         }
         else if (orderDescArgs.length > 0)
         {
             const orderDesc = orderDescArgs[0];
-            
-            const additionalOrder = orderDesc.value.value !== idField
-                && rows.map(x => x.column_name).includes(idField)
-                ? `, a${level}."${idField}"` : "";
-
-            orderBy = ` ORDER BY a${level}."${orderDesc.value.value}" DESC${additionalOrder}`;
+            orderBy = createOrderBy(orderDesc, true, rows, level);
         }
 
         const skipArgs = selection.arguments.filter(x => x.name.value === 'skip');
@@ -568,18 +576,13 @@ function viewTable(selection, tableName, result, where, level)
         const inheritFilters = processInheritFilters(selection, fkRows, qraphqlFilter, level, tableName);
         const inheritReverseFilters = processInheritReverseFilters(selection, fkReverseRows, level);
 
-        let sqlOperator = '';
-        if (qraphqlFilter.length
-            || inheritFilters.relFilter.length)
-        {
-            sqlOperator = where.length ? ' AND' : ' WHERE';
-        }
-
         const userWhere = (userFilter && rows.filter(x => x.column_name === userFilterField).length)
-            ? getUserWhere(where.length || inheritFilters.relWhere.length || qraphqlFilter.length, userFilterField, level, true)
+            ? getUserWhere(userFilterField, level)
             : '';
 
-        query += `${inheritFilters.relFilter} ${inheritReverseFilters.relFilter} ${where}${sqlOperator}${qraphqlFilter}${inheritFilters.relWhere}${userWhere}${orderBy}${limit}`;
+        const finalWhere = mixWhere([where, qraphqlFilter, inheritFilters.relWhere, userWhere], true);
+
+        query += `${inheritFilters.relFilter} ${inheritReverseFilters.relFilter}${join ?? ''}${finalWhere}${orderBy}${limit}`;
 
         plv8.elog(NOTICE, query);
         items = plv8.execute(query);
@@ -603,11 +606,16 @@ function viewTable(selection, tableName, result, where, level)
                         const subResult = {};
                         const subResultOrdered = {};
 
-                        const innerWhere = (level === 2 && ids.length > 6500)
-                            ? ` JOIN ${schema}"${tableName}" a${level} ON a${level}."${fkRow.column_name}"=a${level + 1}."${fkRow.foreign_column_name}" ${where}`
-                            : ` WHERE a${level + 1}."${fkRow.foreign_column_name}" IN(${ids.join(', ')})`;
+                        const useJoin = level === 2 && ids.length > 6500;
+                        const innerWhere = useJoin
+                            ? where
+                            : ` a${level + 1}."${fkRow.foreign_column_name}" IN(${ids.join(', ')})`;
 
-                        viewTable(field, fkRow.foreign_table_name, subResult, innerWhere, level + 1);
+                        const innerJoin = useJoin
+                            ? ` JOIN ${schema}"${tableName}" a${level} ON a${level}."${fkRow.column_name}"=a${level + 1}."${fkRow.foreign_column_name}"`
+                            : null;
+
+                        viewTable(field, fkRow.foreign_table_name, subResult, innerWhere, innerJoin, level + 1);
 
                         const subResultPart = subResult[fkRow.foreign_table_name];
 
@@ -656,14 +664,11 @@ function viewTable(selection, tableName, result, where, level)
                     const alias = aliases.find(x => x.alias === fkReverseRow.column_name);
                     const reverse_column_name = alias?.column_name ?? fkReverseRow.column_name;
 
-                    let innerWhere =
-                        ` JOIN ${schema}"${tableName}" a${level} ON a${level}."${fkReverseRow.foreign_column_name}"=a${level + 1}."${reverse_column_name}" 
-                ${where}${sqlOperator}${qraphqlFilter0}`;
+                    const innerJoin = ` JOIN ${schema}"${tableName}" a${level} ON a${level}."${fkReverseRow.foreign_column_name}"=a${level + 1}."${reverse_column_name}"`;
+                    let additionalWhere = null;
 
                     if (limit.length > 0)
                     {
-                        sqlOperator = (where.length > 0) || (qraphqlFilter0.length > 0)
-                            ? ' AND' : ' WHERE';
                         let ids = items.map(a => a[idField]);
 
                         if (typeof ids[0] === 'string')
@@ -671,8 +676,10 @@ function viewTable(selection, tableName, result, where, level)
                             ids = ids.map(x => `'${x}'`);
                         }
 
-                        innerWhere += ` ${sqlOperator} a${level}."${idField}" IN(${ids.join(', ')})`;
+                        additionalWhere = ` a${level}."${idField}" IN(${ids.join(', ')})`;
                     }
+
+                    const finalWhere = mixWhere([where, qraphqlFilter0, additionalWhere], true);
 
                     if (field.selectionSet?.selections
                         && field.selectionSet.selections.filter(x => x.name.value === fkReverseRow.column_name).length < 1)
@@ -687,7 +694,7 @@ function viewTable(selection, tableName, result, where, level)
                         field.selectionSet.selections.push(newSelection);
                     }
 
-                    viewTable(field, fkReverseRow.table_name, subResult, innerWhere, level + 1);
+                    viewTable(field, fkReverseRow.table_name, subResult, finalWhere, innerJoin, level + 1);
 
                     const subItems = subResult[fkReverseRow.table_name];
 
@@ -894,7 +901,7 @@ api.gqlquery(query).definitions[0].selectionSet.selections.map(x =>
     }
     else
     {
-        viewTable(x, x.name.value, result, '', 1);
+        viewTable(x, x.name.value, result, '', null, 1);
     }
 });
 

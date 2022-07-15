@@ -21,7 +21,7 @@ exports.tables = {
     branch: {
         id: 'integer PRIMARY KEY NOT NULL',
         company_id: 'integer NOT NULL',
-        account_id: 'integer NOT NULL',
+        account_id: 'integer',
         name: 'text'
     },
     graphql_aliases: { column_name: 'text', alias: 'text'},
@@ -51,6 +51,8 @@ INSERT INTO company(id, account_id, company_type_id, name) VALUES
     (1, 1, 1, 'Sales'), (2, 1, 2, 'Appliances'), (3, 2, 2, 'Fruits');
 INSERT INTO section(id, company_id, name) VALUES
     (1, 1, 'Pre-sales'), (2, 2, 'Appliances-1'), (3, 2, 'Appliances-2'), (4, 3, 'Bananas');
+INSERT INTO branch(id, company_id, account_id, name) VALUES
+    (1, 1, 1, "Direct"), (2, 1, NULL, "Deferred"), (3, 3, 1, "Bananas");
 
 INSERT INTO graphql_schema_foreign_keys (column_name, foreign_table_name, foreign_column_name, table_name) VALUES
     ('account_id', 'account', 'id', 'company'),
