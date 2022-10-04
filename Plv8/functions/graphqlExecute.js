@@ -452,6 +452,11 @@ function mixWhere(whereArr, addWhereOperator)
         return "";
     }
 
+    if (addWhereOperator && whereArr[0].includes('WHERE'))
+    {
+        whereArr[0] = whereArr[0].replace('WHERE', '');
+    }
+
     return `${addWhereOperator ? ' WHERE ' : ''}${whereArr.join(' AND ')}`;
 }
 
