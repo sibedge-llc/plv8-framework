@@ -32,7 +32,7 @@ test('Pascal-case table, insert data test', () =>
 
     sqlite.connect(dbPath);
 
-    let items = sqlite.run(`SELECT * FROM ${tableName}`);
+    const items = sqlite.run(`SELECT * FROM ${tableName}`);
     expect(items.length).toBe(2);
 
     const [item2] = items.filter(x => x.Id === 12);

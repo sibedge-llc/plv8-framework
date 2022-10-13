@@ -234,7 +234,13 @@ else if (multiMode)
     }
     else
     {
-        const keys = Object.keys(entities[0]);
+        const allKeyObj = {};
+        
+        entities.forEach(e => Object.keys(e)
+            .filter(k => !(k in allKeyObj))
+            .forEach(k => allKeyObj[k] = true));        
+        
+        const keys = Object.keys(allKeyObj);
         fields = getFields(keys);
         values = entities.map(x => getValues(x, keys));
     }
