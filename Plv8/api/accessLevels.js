@@ -35,6 +35,7 @@ const operators =
     arrayContains: ' = ANY',
     arrayNotContains: ' != ALL',
     in: ' IN ',
+    notIn: ' NOT IN ',
     isNull: ' IS ',
     jsquery: '@@'
 };
@@ -162,7 +163,7 @@ exports.getOperatorValue = function(operatorName, value, values, isString)
     {
         return `${value ? '' : 'NOT '}NULL`;
     }
-    else if (operator === operators.in)
+    else if (operator === operators.in || operator === operators.notIn)
     {
         return `(${values
             .map(x => x.isString ? `'${x.value}'` : x.value)
