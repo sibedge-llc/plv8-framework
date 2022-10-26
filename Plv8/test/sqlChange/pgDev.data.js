@@ -1,20 +1,11 @@
 exports.entities = 
-[
-    {
-        "stack_id": 3,
-        "name": "Скилл-3c",
-        "description": "Описание 3c",
-        "category_id": 3
-    },
-    {
-        "stack_id": 3,
-        "name": "Скилл-2c",
-        "category_id": 2
-    },
-]
+    [
+        { id: 'ZZY' },
+        { id: 'ZZZ' }
+    ]
 ;
 
-exports.tableName = "skill";
+exports.tableName = "airports_data";
 exports.idKeys = ["id"];
-//exports.operation = 'delete';
+exports.operation = 'delete';
 exports.schema = 'public';
