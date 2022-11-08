@@ -1,4 +1,5 @@
 CREATE SCHEMA graphql;
+CREATE SCHEMA func;
 
 CREATE TABLE graphql.additional_columns
 (
@@ -32,6 +33,10 @@ UNION
  SELECT additional_columns.column_name,
     additional_columns.table_name
    FROM graphql.additional_columns
+UNION
+ SELECT unnest(p.proargnames) AS column_name, p.proname AS table_name
+   FROM pg_proc p INNER JOIN pg_namespace ns ON (p.pronamespace = ns.oid)
+  WHERE ns.nspname = 'func'   
 WITH DATA;
 
 CREATE MATERIALIZED VIEW graphql.schema_foreign_keys AS 

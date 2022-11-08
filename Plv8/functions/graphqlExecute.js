@@ -443,6 +443,30 @@ function createOrderBy(order, isDesc, rows, level)
     return ` ORDER BY a${orderLevel}."${mainOrder}"${isDesc ? " DESC" : ""}${additionalOrder}`;
 }
 
+function getFuncArgs(data)
+{
+    const [args] = data;
+    const ret = [];
+    args.value.values.forEach(x =>
+    {
+        const { kind, value } = x;
+        if (kind === 'IntValue')
+        {
+            ret.push(parseInt(value));
+        }
+        else if (kind === 'FloatValue')
+        {
+            ret.push(parseFloat(value));
+        }
+        else
+        {
+            ret.push(value);
+        }
+    });
+
+    return ret;
+}
+
 function mixWhere(whereArr, addWhereOperator)
 {
     whereArr = whereArr.filter(x => x?.length);
@@ -512,10 +536,19 @@ function viewTable(selection, tableName, result, where, join, level)
     let idFilterValue = -1;
     let orderBy = '';
     let limit = '';
+    let isFunction = false;
+    let funcCallArgs = [];
 
     //-- grapghql filters
     if (selection.arguments)
     {
+        const funcArgs = selection.arguments.filter(x => x.name.value === 'args');
+        if (funcArgs.length > 0)
+        {
+            isFunction = true;
+            funcCallArgs = getFuncArgs(funcArgs);
+        }
+
         qraphqlFilter = getFilter(selection.arguments, level, fkRows, fkReverseRows);
         if (level === 1)
         {
@@ -576,8 +609,13 @@ function viewTable(selection, tableName, result, where, join, level)
             fields.push(`"${idField}"`);
         }
 
+        const currentSchema = isFunction ? 'func.' : schema;
+        const funcArgs = isFunction
+            ? (`(${funcCallArgs.join(", ")})`)
+            : "";
+
         // Relation objects filter by existing
-        let query = `SELECT ${fields.join(", ")} FROM ${schema}"${tableName}" a${level}`;
+        let query = `SELECT ${fields.join(", ")} FROM ${currentSchema}"${tableName}"${funcArgs} a${level}`;
         const inheritFilters = processInheritFilters(selection, fkRows, qraphqlFilter, level, tableName);
         const inheritReverseFilters = processInheritReverseFilters(selection, fkReverseRows, level);
 
