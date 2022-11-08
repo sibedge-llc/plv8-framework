@@ -95,6 +95,18 @@ function getRelatedName(columnName)
     return columnName.substr(0, columnName.length - idPostfix.length);
 }
 
+function getRelatedNameRow(fkRow)
+{
+    if (fkRow.is_array)
+    {
+        return fkRow.foreign_table_name;
+    }
+    else
+    {
+        return getRelatedName(fkRow.column_name);
+    }
+}
+
 function getOperatorPart(filterField, fieldName, children)
 {
     const operatorName = filterField.name.value;
@@ -501,7 +513,7 @@ function viewTable(selection, tableName, result, where, join, level)
     const fkRowsAll = getFkData(tableName);
     const fkRows = fkRowsAll.filter(x => canBeRelated(x.column_name))
         .filter(item => item.table_name === tableName
-            && tableKeys.includes(getRelatedName(item.column_name)));
+            && tableKeys.includes(getRelatedNameRow(item)));
 
     let aggExist = false;
     const fkReverseRows = fkRowsAll.filter(item =>
@@ -636,9 +648,16 @@ function viewTable(selection, tableName, result, where, join, level)
             {
                 const fieldNameLower = field.name.value.toLowerCase();
 
-                if (fieldNameLower === getRelatedName(fkRow.column_name).toLowerCase())
+                if (fieldNameLower === getRelatedNameRow(fkRow).toLowerCase())
                 {
                     let ids = items.map(a => a[fkRow.column_name]).filter(item => item).filter(distinct);
+                    if (fkRow.is_array)
+                    {
+                        const newIds = [];
+                        ids.filter(x => x).forEach(x => x.forEach(id => newIds.push(id)));
+                        ids = [...new Set(newIds)];
+                    }
+
                     if (ids.length > 0)
                     {
                         if (typeof ids[0] === 'string')
@@ -667,7 +686,20 @@ function viewTable(selection, tableName, result, where, join, level)
                             subResultPart.map(a => subResultOrdered[a[fkRow.foreign_column_name]] = a);
                         }
 
-                        items.map(item => item[field.name.value] = subResultOrdered[item[fkRow.column_name]]);
+                        if (fkRow.is_array)
+                        {
+                            items.forEach(item =>
+                            {
+                                const originalArr = item[fkRow.column_name] ?? [];
+                                item[field.name.value] = originalArr
+                                    .map(id => subResultOrdered[id])
+                                    .filter(x => x);
+                            });
+                        }
+                        else
+                        {
+                            items.forEach(item => item[field.name.value] = subResultOrdered[item[fkRow.column_name]]);
+                        }
                        
                         const currentRelations = inheritFilters.relationFilterKeys
                             .filter(x => x.toLowerCase() === fieldNameLower);

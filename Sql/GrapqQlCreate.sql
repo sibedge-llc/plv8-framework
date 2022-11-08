@@ -14,6 +14,7 @@ CREATE TABLE graphql.additional_foreign_keys
   foreign_table_name name NOT NULL,
   foreign_column_name name NOT NULL,
   table_name name NOT NULL,
+  is_array boolean NOT NULL,
   PRIMARY KEY (column_name, foreign_table_name, foreign_column_name, table_name)
 );
 
@@ -43,7 +44,8 @@ CREATE MATERIALIZED VIEW graphql.schema_foreign_keys AS
  SELECT kcu.column_name,
     ccu.table_name AS foreign_table_name,
     ccu.column_name AS foreign_column_name,
-    tc.table_name
+    tc.table_name,
+    FALSE AS is_array
    FROM information_schema.table_constraints tc
      JOIN information_schema.key_column_usage kcu ON tc.constraint_name::name
 	   = kcu.constraint_name::name AND tc.table_schema::name = kcu.table_schema::name
@@ -55,7 +57,8 @@ UNION
  SELECT additional_foreign_keys.column_name,
     additional_foreign_keys.foreign_table_name,
     additional_foreign_keys.foreign_column_name,
-    additional_foreign_keys.table_name
+    additional_foreign_keys.table_name,
+    additional_foreign_keys.is_array
    FROM graphql.additional_foreign_keys
 WITH DATA;
 
