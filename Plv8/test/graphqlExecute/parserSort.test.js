@@ -17,7 +17,8 @@ test('Mock, ORDER BY should be used', () =>
     const columns = ast.columns;
     
     expect(columns).toHaveLength(1);
-    expect(columns[0].expr.value).toBe("id");
+    expect(columns[0].expr.table).toBe("a1");
+    expect(columns[0].expr.column).toBe("id");
 
     const { type, expr } = ast.orderby[0];
     expect(type).toBe("ASC");

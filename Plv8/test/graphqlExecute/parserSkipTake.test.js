@@ -17,7 +17,8 @@ test('Mock, LIMIT/OFFSET should be used', () =>
     const columns = ast.columns;
     
     expect(columns).toHaveLength(1);
-    expect(columns[0].expr.value).toBe("id");
+    expect(columns[0].expr.table).toBe("a1");
+    expect(columns[0].expr.column).toBe("id");
 
     const limit = ast.limit;
     expect(limit.seperator).toBe("offset");

@@ -481,7 +481,7 @@ function getFuncArgs(data)
 
 function mixWhere(whereArr, addWhereOperator)
 {
-    whereArr = whereArr.filter(x => x?.length);
+    whereArr = whereArr.filter(x => x?.trim()?.length);
 
     if (!whereArr.length)
     {
@@ -616,9 +616,10 @@ function viewTable(selection, tableName, result, where, join, level)
             })
             : rows.map(a => `a${level}."${a.column_name}"`);        
 
-        if (fields.length < 1 || aggExist)
+        const idFieldFullName = `a${level}."${idField}"`;
+        if (fields.length < 1 || (aggExist && !fields.includes(idFieldFullName)))
         {
-            fields.push(`"${idField}"`);
+            fields.push(idFieldFullName);
         }
 
         const currentSchema = isFunction ? 'func.' : schema;
@@ -794,25 +795,24 @@ function viewTable(selection, tableName, result, where, join, level)
                 else if (field.name.value.toLowerCase() === (fkReverseRow.table_name + aggPostfix).toLowerCase())
                 {
                     let aggResult = {};
-                    let aggWhere =
-                        ` JOIN ${schema}"${tableName}" a${level} ON a${level}."${fkReverseRow.foreign_column_name}"=a${level + 1}."${fkReverseRow.column_name}" 
-                            ${where}${sqlOperator}${qraphqlFilter0}`;
-
+                    let aggJoin = ` JOIN ${schema}"${tableName}" a${level} ON a${level}."${fkReverseRow.foreign_column_name}"=a${level + 1}."${fkReverseRow.column_name}" `;
+                    let inWhere = '';
+                    
                     if (limit.length > 0)
                     {
-                        sqlOperator = (where.length > 0) || (qraphqlFilter0.length > 0)
-                            ? ' AND' : ' WHERE';
-                            let ids = items.map(a => a[idField]);
+                        let ids = items.map(a => a[idField]);
 
                         if (typeof ids[0] === 'string')
                         {
                             ids = ids.map(x => `'${x}'`);
                         }
 
-                        aggWhere += ` ${sqlOperator} a${level}."${idField}" IN(${ids.join(', ')})`;
+                        inWhere = ` a${level}."${idField}" IN(${ids.join(', ')})`;
                     }
 
-                    aggResult = executeAgg(field, field.name.value, aggResult, aggWhere, level + 1, `a${level + 1}."${fkReverseRow.column_name}"`);
+                    const fullWhere = mixWhere([inWhere], true);
+                    const totalWhere = aggJoin + fullWhere;
+                    aggResult = executeAgg(field, field.name.value, aggResult, totalWhere, level + 1, `a${level + 1}."${fkReverseRow.column_name}"`);
                     const aggResultOrdered = {};
 
                     aggResult.map(x =>
