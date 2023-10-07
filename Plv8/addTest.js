@@ -45,7 +45,7 @@ const testHelper = require(appRoot + '/helpers/testHelper.js');
 
 if (options.sqlite)
 {
-    content += `const sqlite = require('sqlite-sync');
+    content += `const sqlite = require(appRoot + "/helpers/sqlite");
 const top = require(appRoot + "/helpers/top.js");
 `;
 }

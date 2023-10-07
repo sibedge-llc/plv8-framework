@@ -19,7 +19,7 @@ String.prototype.replaceAll = function(search, replacement)
 
 exports.execute = function (query)
 {
-    const sqlite = require('sqlite-sync');    
+    const sqlite = require(appRoot + "/helpers/sqlite");
     const top = require(appRoot + "/helpers/top.js");
 
     sqlite.connect(top.dbPath);

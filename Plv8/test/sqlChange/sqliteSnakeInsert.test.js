@@ -1,7 +1,7 @@
-const sqlite = require('sqlite-sync');
 const appRoot = require('app-root-path');
 const testHelper = require(appRoot + '/helpers/testHelper.js');
 const top = require(appRoot + "/helpers/top.js");
+const sqlite = require(appRoot + '/helpers/sqlite.js');
 
 test('Snake-case table, insert data test', () =>
 {

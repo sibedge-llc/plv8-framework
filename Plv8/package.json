@@ -11,11 +11,11 @@
   "author": "Alexey Fadeev",
   "license": "ISC",
   "dependencies": {
-    "app-root-path": "^3.0.0",
+    "app-root-path": "^3.1.0",
     "command-line-args": "^5.2.1",
-    "jest": "^26.1.0",
-    "node-sql-parser": "^3.1.0",
-    "pg-native": "^3.0.0",
-    "sqlite-sync": "^0.3.9"
+    "jest": "^29.7.0",
+    "node-sql-parser": "^3.9.4",
+    "pg-native": "^3.0.1",
+    "sql.js": "^0.4.0"
   }
 }
