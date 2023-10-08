@@ -58,7 +58,7 @@ const NOTICE = 'NOTICE';
 
 const top = require("../helpers/top.js");
 const plv8 = require(top.data.plv8);
-const args = require(top.data.funcArgs.graphqlExecute);
+const args = require(top.data.funcArgs.${options.name});
 
 `;
 

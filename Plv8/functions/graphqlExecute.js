@@ -7,7 +7,7 @@ const configuration = {
             user: 'jsonb'
         }
     },
-    apiFunctions: ['gqlquery', 'accessLevels']
+    apiFunctions: ['gqlquery', 'accessLevels', 'utils']
 };
 
 /*LOCAL*/
@@ -73,11 +73,6 @@ function getFkData(tableName)
 
     fkData[tableName] = fkRowsAll;
     return fkRowsAll;
-}
-
-function distinct(value, index, self)
-{
-    return self.indexOf(value) === index;
 }
 
 String.prototype.trim = function ()
@@ -651,7 +646,7 @@ function viewTable(selection, tableName, result, where, join, level)
 
                 if (fieldNameLower === getRelatedNameRow(fkRow).toLowerCase())
                 {
-                    let ids = items.map(a => a[fkRow.column_name]).filter(item => item).filter(distinct);
+                    let ids = items.map(a => a[fkRow.column_name]).filter(item => item).filter(api.distinct);
                     if (fkRow.is_array)
                     {
                         const newIds = [];
