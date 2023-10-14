@@ -40,6 +40,17 @@ const dataTypes = {
     Boolean: "boolean"
 };
 
+const numericTypes = ["integer", "bigint", "real", "double_precision", "numeric"];
+const dateTypes = ["timestamp", "date", "time"];
+const dateAggFunctionsCommon = ["max", "min"];
+const aggFunctionsCommon = ["avg", "sum"].concat(dateAggFunctionsCommon);
+
+const filterOperatorsInt = ["equals", "notEquals", "less", "greater", "lessOrEquals", "greaterOrEquals"];
+const filterOperatorsText = ["contains", "notContains", "arrayContains", "arrayNotContains", "starts", "ends", "equalsNoCase", "jsquery"];
+const filterOperatorsBool = ["isNull"];
+const filterOperatorsArray = ["in"];
+const filterOperatorsObject = ["children"];
+
 String.prototype.replaceAll = function(search, replacement)
 {
     const target = this;
@@ -48,7 +59,7 @@ String.prototype.replaceAll = function(search, replacement)
 
 function createNamedItem(name)
 {
-    return { Name: name };
+    return { name: name };
 }
 
 function getForeignKeyInfo()
@@ -70,9 +81,9 @@ function toTypeName(dbName)
 function createType(kind, name, type = null)
 {
     return {
-        Kind: kind,
-        Name: name,
-        OfType: type
+        kind: kind,
+        name: name,
+        ofType: type
     };
 }
 
@@ -94,23 +105,25 @@ function createNonNullListType(kind, name)
 function createNode(fieldInfoList)
 {
     const ret = {
-        Name: "Node",
-        Description: "An object with an ID",
-        Fields: [
+        name: "Node",
+        description: "An object with an ID",
+        fields: [
             {
-                Name: "id",
-                Description: "The id of the object.",
-                Type: createNonNullType(kinds.Scalar, "Id"),
+                args: [],
+                name: "id",
+                description: "The id of the object.",
+                isDeprecated: false,
+                type: createNonNullType(kinds.Scalar, "Id"),                
             },
         ],
-        Kind: kinds.Interface,
-        PossibleTypes: []
+        kind: kinds.Interface,
+        possibleTypes: []
     };
 
     fieldInfoList
         .map(x => x.TableName)
         .filter(api.distinct)
-        .forEach(tableName => ret.PossibleTypes.push(createType(kinds.Object, tableName)));    
+        .forEach(tableName => ret.possibleTypes.push(createType(kinds.Object, tableName)));    
 
     return ret;
 }
@@ -118,10 +131,10 @@ function createNode(fieldInfoList)
 function createQuery(fieldInfoList)
 {
     const ret = {
-        Name: "Query",
-        Interfaces: [],
-        Kind: kinds.Object,
-        Fields: []
+        name: "Query",
+        interfaces: [],
+        kind: kinds.Object,
+        fields: []
     };
 
     fieldInfoList
@@ -129,52 +142,54 @@ function createQuery(fieldInfoList)
         .filter(api.distinct)
         .forEach(tableName =>
     {
-        ret.Fields.push({
-            Name: tableName,
-            Type: createNonNullListType(kinds.Object, tableName),
-            Args: [
+        ret.fields.push({
+            name: tableName,
+            type: createNonNullListType(kinds.Object, tableName),
+            isDeprecated: false,
+            args: [
                 {
-                    Name: "id",
-                    Type: createType(kinds.Scalar, dataTypes.Integer),
+                    name: "id",
+                    type: createType(kinds.Scalar, dataTypes.Integer),
                 },
                 {
-                    Name: "filter",
-                    Type: createType(kinds.InputObject, `${tableName}Filter`),
+                    name: "filter",
+                    type: createType(kinds.InputObject, `${tableName}Filter`),
                 },
                 {
-                    Name: "orderBy",
-                    Type: createType(kinds.Enum, `${tableName}OrderBy`),
+                    name: "orderBy",
+                    type: createType(kinds.Enum, `${tableName}OrderBy`),
                 },
                 {
-                    Name: "orderByDescending",
-                    Type: createType(kinds.Enum, `${tableName}OrderByDescending`),
+                    name: "orderByDescending",
+                    type: createType(kinds.Enum, `${tableName}OrderByDescending`),
                 },
                 {
-                    Name: "skip",
-                    Type: createType(kinds.Scalar, dataTypes.Integer),
+                    name: "skip",
+                    type: createType(kinds.Scalar, dataTypes.Integer),
                 },
                 {
-                    Name: "take",
-                    Type: createType(kinds.Scalar, dataTypes.Integer),
+                    name: "take",
+                    type: createType(kinds.Scalar, dataTypes.Integer),
                 },
             ]
         });
 
-        ret.Fields.push({
-            Name: tableName + aggPostfix,
-            Type: createType(kinds.InputObject, tableName + aggPostfix),
-            Args: [
+        ret.fields.push({
+            name: tableName + aggPostfix,
+            type: createType(kinds.InputObject, tableName + aggPostfix),
+            isDeprecated: false,
+            args: [
                 {
-                    Name: "filter",
-                    Type: createType(kinds.InputObject, `${tableName}Filter`),
+                    name: "filter",
+                    type: createType(kinds.InputObject, `${tableName}Filter`),
                 },
                 {
-                    Name: "groupBy",
-                    Type: createType(kinds.Enum, `${tableName}OrderBy`),
+                    name: "groupBy",
+                    type: createType(kinds.Enum, `${tableName}OrderBy`),
                 },
                 {
-                    Name: "aggFilter",
-                    Type: createType(kinds.InputObject, `${tableName}AggFilter`),
+                    name: "aggFilter",
+                    type: createType(kinds.InputObject, `${tableName}AggFilter`),
                 },
             ],
         });
@@ -192,11 +207,11 @@ function createTables(fieldInfoList, foreignKeyList)
     Object.keys(tables).forEach(key =>
     {
         const element = {
-            Name: key,
-            Description: key,
-            Interfaces: [ createType(kinds.Interface, "Node") ],
-            Kind: kinds.Object,
-            Fields: [],
+            name: key,
+            description: key,
+            interfaces: [ createType(kinds.Interface, "Node") ],
+            kind: kinds.Object,
+            fields: [],
         };
 
         const table = tables[key];
@@ -210,72 +225,345 @@ function createTables(fieldInfoList, foreignKeyList)
                 : toTypeName(column.DataType);
 
             const field = {
-                Name: column.ColumnName,
-                Type: column.IsNullable
+                args: [],
+                name: column.ColumnName,
+                type: column.IsNullable
                     ? createType(kinds.Scalar, dataTypeName)
                     : createNonNullType(kinds.Scalar, dataTypeName),
+                isDeprecated: false
             };
 
-            if (isIdColumn)
-            {
-                field.RawType = createNonNullType(kinds.Scalar, toTypeName(column.DataType));
-            }
-
-            element.Fields.push(field);
+            element.fields.push(field);
         });
 
         const singleLinks = foreignKeyList.filter(x => x.TableName === key);
         singleLinks.forEach(singleLink =>
         {
-            element.Fields.push({
-                Name: singleLink.ColumnName.endsWith(idPostfix)
+            element.fields.push({
+                name: singleLink.ColumnName.endsWith(idPostfix)
                     ? singleLink.ColumnName.substr(0, singleLink.ColumnName.length - idPostfix.length)
                     : singleLink.ColumnName,
-                Type: createType(kinds.Object, singleLink.ForeignTableName),
-                Args: [
+                type: createType(kinds.Object, singleLink.ForeignTableName),
+                args: [
                     {
-                        Name: "filter",
-                        Type: createType(kinds.InputObject, `${singleLink.ForeignTableName}Filter`),
+                        name: "filter",
+                        type: createType(kinds.InputObject, `${singleLink.ForeignTableName}Filter`),
                     },
-                ]
+                ],
+                isDeprecated: false
             });
         });
 
         const multipleLinks = foreignKeyList.filter(x => x.ForeignTableName === key);
         multipleLinks.forEach(multipleLink =>
         {
-            element.Fields.push({
-                Name: multipleLink.TableName,
-                Type: createListType(kinds.Object, multipleLink.TableName),
-                Args: [
+            element.fields.push({
+                name: multipleLink.TableName,
+                type: createListType(kinds.Object, multipleLink.TableName),
+                args: [
                     {
-                        Name: "filter",
-                        Type: createType(kinds.InputObject, `${multipleLink.TableName}Filter`),
+                        name: "filter",
+                        type: createType(kinds.InputObject, `${multipleLink.TableName}Filter`),
                     },
                     {
-                        Name: "orderBy",
-                        Type: createType(kinds.Enum, `${multipleLink.TableName}OrderBy`),
+                        name: "orderBy",
+                        type: createType(kinds.Enum, `${multipleLink.TableName}OrderBy`),
                     },
                     {
-                        Name: "orderByDescending",
-                        Type: createType(kinds.Enum, `${multipleLink.TableName}OrderByDescending`),
+                        name: "orderByDescending",
+                        type: createType(kinds.Enum, `${multipleLink.TableName}OrderByDescending`),
                     }
-                ]
+                ],
+                isDeprecated: false
             });
 
-            element.Fields.push({
-                Name: multipleLink.TableName + aggPostfix,
-                Type: createType(kinds.InputObject, `${multipleLink.TableName}${aggPostfix}Nested`),
-                Args: [
+            element.fields.push({
+                name: multipleLink.TableName + aggPostfix,
+                type: createType(kinds.InputObject, `${multipleLink.TableName}${aggPostfix}Nested`),
+                args: [
                     {
-                        Name: "filter",
-                        Type: createType(kinds.InputObject, `${multipleLink.TableName}Filter`),
+                        name: "filter",
+                        type: createType(kinds.InputObject, `${multipleLink.TableName}Filter`),
                     }
-                ]
+                ],
+                isDeprecated: false
             });
         });
 
         ret.push(element);
+    });
+
+    return ret;
+}
+
+function createAggregates(fieldInfoList, foreignKeyList)
+{
+    const ret = [];
+
+    let selectExpr = x => x;
+
+    if (aggPostfix[0] === '_')
+    {
+        selectExpr = x => x + "_";
+    }
+
+    const dateAggFunctions = dateAggFunctionsCommon.map(selectExpr);
+    const aggFunctions = aggFunctionsCommon.map(selectExpr);
+
+    const distinctStart = "distinct" + ((aggPostfix[0] === '_') ? "_" : "");
+
+    const tables = api.groupBy(fieldInfoList, "TableName");
+
+    Object.keys(tables).forEach(key =>
+    {
+        const table = tables[key];
+
+        const countField = {
+            args: [],
+            name: "count",
+            type: createType(kinds.Scalar, dataTypes.Integer),
+            isDeprecated: false
+        };
+
+        const elementRoot = {
+            name: key + aggPostfix,
+            description: "Aggregate function for " + key,
+            interfaces: [createType(kinds.Interface, "Node")],
+            kind: kinds.Object
+        }
+
+        const element = {
+            name: elementRoot.name + "Nested",
+            description: elementRoot.description,
+            interfaces: elementRoot.interfaces,
+            kind: elementRoot.kind,
+            fields: [countField],
+        }
+
+        table.filter(c => c.ColumnName.toLowerCase() !== idField.toLowerCase()).forEach(column =>
+        {
+            const dataTypeName = toTypeName(column.DataType);
+
+            element.fields.push({
+                args: [],
+                name: distinctStart + column.ColumnName,
+                type: createListType(kinds.Object, dataTypeName),
+                isDeprecated: false
+            });
+
+            if (!column.ColumnName.endsWith(idPostfix))
+            {
+                let aggFunctionsList = [];
+
+                if (numericTypes.includes(dataTypeName))
+                {
+                    aggFunctionsList = aggFunctions;
+                }
+                else if (dateTypes.filter(x => dataTypeName.startsWith(x)).length)
+                {
+                    aggFunctionsList = dateAggFunctions;
+                }
+
+                aggFunctionsList.forEach(aggFunction =>
+                {
+                    element.fields.push({
+                        args: [],
+                        name: aggFunction + column.ColumnName,
+                        type: createType(kinds.Scalar, dataTypes.Integer),
+                        isDeprecated: false
+                    });
+                });
+            }
+        });
+
+        const singleLinks = foreignKeyList.filter(x => x.TableName === key);
+        singleLinks.forEach(singleLink =>
+        {
+            element.fields.push({
+                name: singleLink.ColumnName.endsWith(idPostfix)
+                    ? singleLink.ColumnName.substr(0, singleLink.ColumnName.length - idPostfix.length)
+                    : singleLink.ColumnName,
+                type: createType(kinds.Object, singleLink.ForeignTableName),
+                args: [
+                    {
+                        name: "filter",
+                        type: createType(kinds.InputObject, `${singleLink.ForeignTableName}Filter`),
+                    },
+                ],
+                isDeprecated: false
+            });
+        });
+
+        elementRoot.fields = element.fields;
+        elementRoot.fields.push({
+            args: [],
+            name: "key",
+            type: createType(kinds.Scalar, "Id"),
+            isDeprecated: false
+        });
+
+        ret.push(element);
+        ret.push(elementRoot);
+    });
+
+    return ret;
+}
+
+function createFilters(fieldInfoList, foreignKeyList)
+{
+    const ret = [
+        {
+            name: "FreeFieldsFilter",
+            kind: kinds.InputObject,
+            inputFields: [],
+        },
+        {
+            name: "OperatorFilter",
+            kind: kinds.InputObject,
+            inputFields: filterOperatorsText
+                .map(x => ({
+                    name: x,
+                    description: `'${x}' operator.`,
+                    type: createType(kinds.Scalar, dataTypes.Text),
+                }))
+                .concat(filterOperatorsInt.map(x => ({
+                    name: x,
+                    description: `'${x}' operator.`,
+                    type: createType(kinds.Scalar, dataTypes.Integer),
+                })))
+                .concat(filterOperatorsBool.map(x => ({
+                    name: x,
+                    description: `'${x}' operator.`,
+                    type: createType(kinds.Scalar, dataTypes.Boolean),
+                })))
+                .concat(filterOperatorsArray.map(x => ({
+                    name: x,
+                    description: `'${x}' operator.`,
+                    type: createListType(kinds.Scalar, dataTypes.Integer),
+                })))
+                .concat(filterOperatorsObject.map(x => ({
+                    name: x,
+                    description: `'${x}' operator.`,
+                    type: createType(kinds.InputObject, "FreeFieldsFilter"),
+                })))
+        }
+    ];
+
+    let selectExpr = x => x;
+
+    if (aggPostfix[0] === '_')
+    {
+        selectExpr = x => x + "_";
+    }
+
+    const dateAggFunctions = dateAggFunctionsCommon.map(selectExpr);
+    const aggFunctions = aggFunctionsCommon.map(selectExpr);
+
+    const tables = api.groupBy(fieldInfoList, "TableName");
+
+    Object.keys(tables).forEach(key =>
+    {
+        const table = tables[key];
+
+        const filerInputFields = table.map(x => ({
+                name: x.ColumnName,
+                description: x.ColumnName,
+                type: createType(kinds.Object, "OperatorFilter"),
+            }));
+
+        const singleLinks = foreignKeyList.filter(x => x.TableName === key);
+        singleLinks.forEach(singleLink =>
+        {
+            const relationField = {
+                name: singleLink.ColumnName.endsWith(idPostfix)
+                    ? singleLink.ColumnName.substr(0, singleLink.ColumnName.length - idPostfix.length)
+                    : singleLink.ColumnName,
+                type: createType(kinds.Scalar, dataTypes.Boolean),
+            };
+
+            relationField.description = `${relationField.name} relation existing`;
+
+            filerInputFields.push(relationField);
+        });
+
+        const multipleLinks = foreignKeyList.filter(x => x.ForeignTableName === key);
+        multipleLinks.forEach(multipleLink =>
+        {
+            const relationField = {
+                name: multipleLink.TableName,
+                type: createType(kinds.Scalar, dataTypes.Boolean),
+            };
+
+            relationField.description = `${relationField.name} reverse relation existing`;
+
+            filerInputFields.push(relationField);
+        });
+
+        const orField = {
+            name: "or",
+            type: createListType(kinds.InputObject, `${key}Filter`),
+        };
+
+        filerInputFields.push(orField);
+
+        ret.push({
+            name: `${key}Filter`,
+            kind: kinds.InputObject,
+            inputFields: filerInputFields,
+        });
+
+        ret.push({
+            name: `${key}OrderBy`,
+            kind: kinds.Enum,
+            enumValues: table.map(x => ({ name: x.ColumnName, isDeprecated: false }))
+        });
+
+        ret.push({
+            name: `${key}OrderByDescending`,
+            kind: kinds.Enum,
+            enumValues: table.map(x => ({ name: x.ColumnName, isDeprecated: false }))
+        });
+
+        const aggFilerInputFields = [
+            {
+                name: "count",
+                description: "count",
+                type: createType(kinds.Object, "OperatorFilter")
+            }
+        ];
+
+        table
+            .filter(x => !x.ColumnName.endsWith(idPostfix) && x.ColumnName != idField)
+            .forEach(column =>
+        {
+            const dataTypeName = toTypeName(column.DataType);
+            let aggFunctionsList = [];
+
+            if (numericTypes.includes(dataTypeName))
+            {
+                aggFunctionsList = aggFunctions;
+            }
+            else if (dateTypes.filter(x => dataTypeName.startsWith(x)).length)
+            {
+                aggFunctionsList = dateAggFunctions;
+            }
+
+            aggFunctionsList.forEach(aggFunction =>
+            {
+                aggFilerInputFields.push(
+                    {
+                        name: aggFunction + column.ColumnName,
+                        description: aggFunction + column.ColumnName,
+                        type: createType(kinds.Object, "OperatorFilter"),
+                    });
+            });
+        });
+
+        ret.push({
+            name: `${key}AggFilter`,
+            kind: kinds.InputObject,
+            inputFields: aggFilerInputFields,
+        });
     });
 
     return ret;
@@ -290,16 +578,54 @@ function getTypes()
     ret.push(createNode(fieldInfoList));
     ret.push(createQuery(fieldInfoList));
     ret = ret.concat(createTables(fieldInfoList, foreignKeyInfoList));
+    ret = ret.concat(createFilters(fieldInfoList, foreignKeyInfoList));
+    ret = ret.concat(createAggregates(fieldInfoList, foreignKeyInfoList));
+
+    // Data types
+    ret.push({
+        name: "Id",
+        description: "The `Id` scalar type represents a unique identifier.",
+        kind: kinds.Scalar,
+    });
+    
+    fieldInfoList.map(x => x.DataType)
+        .concat([ dataTypes.Integer, dataTypes.Text, dataTypes.Boolean ])
+        .filter(api.distinct)
+        .forEach(dataType =>
+        {
+            ret.push({
+                name: toTypeName(dataType),
+                description: `The '${dataType}' scalar type.`,
+                kind: kinds.Scalar
+            });
+        });
+    
+    // Mutation, subscription
+    ret.push({
+        name: "Mutation",
+        interfaces: [],
+        fields: [],
+        kind: kinds.Object
+    });
+    
+    ret.push({
+        name: "Subscription",
+        interfaces: [],
+        fields: [],
+        kind: kinds.Object,
+    });    
 
     return ret;
 }
 
 const result = {
-    Directives: [],
-    MutationType: createNamedItem("Mutation"),
-    SubscriptionType: createNamedItem("Subscription"),
-    QueryType: createNamedItem("Query"),
-    Types: getTypes(),
+    directives: [],
+    mutationType: createNamedItem("Mutation"),
+    subscriptionType: createNamedItem("Subscription"),
+    queryType: createNamedItem("Query"),
+    types: getTypes(),
 };
 
-exports.ret = result;
+exports.ret = {
+    data: { "__schema": result }
+};
