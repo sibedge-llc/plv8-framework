@@ -48,7 +48,7 @@ const aggFunctionsCommon = ["avg", "sum"].concat(dateAggFunctionsCommon);
 const filterOperatorsInt = ["equals", "notEquals", "less", "greater", "lessOrEquals", "greaterOrEquals"];
 const filterOperatorsText = ["contains", "notContains", "arrayContains", "arrayNotContains", "starts", "ends", "equalsNoCase", "jsquery"];
 const filterOperatorsBool = ["isNull"];
-const filterOperatorsArray = ["in"];
+const filterOperatorsArray = ["in", "notIn"];
 const filterOperatorsObject = ["children"];
 
 String.prototype.replaceAll = function(search, replacement)
@@ -65,7 +65,8 @@ function createNamedItem(name)
 function getForeignKeyInfo()
 {
     const sql = `SELECT table_name AS "TableName", column_name AS "ColumnName",
-                  foreign_table_name AS "ForeignTableName", foreign_column_name AS "ForeignColumnName"
+                  foreign_table_name AS "ForeignTableName", foreign_column_name AS "ForeignColumnName",
+                  is_array AS "IsArray"
                 FROM graphql.schema_foreign_keys`;
 
     return plv8.execute(sql);
@@ -137,10 +138,9 @@ function createQuery(fieldInfoList)
         fields: []
     };
 
-    fieldInfoList
-        .map(x => x.TableName)
-        .filter(api.distinct)
-        .forEach(tableName =>
+    const tables = api.groupBy(fieldInfoList, "TableName");
+
+    Object.keys(tables).forEach(tableName =>
     {
         ret.fields.push({
             name: tableName,
@@ -174,25 +174,29 @@ function createQuery(fieldInfoList)
             ]
         });
 
+        const table = tables[tableName];
+        if (!table.filter(x => x.IsFunction).length)
+        {
         ret.fields.push({
             name: tableName + aggPostfix,
             type: createType(kinds.InputObject, tableName + aggPostfix),
             isDeprecated: false,
             args: [
-                {
-                    name: "filter",
-                    type: createType(kinds.InputObject, `${tableName}Filter`),
-                },
-                {
-                    name: "groupBy",
-                    type: createType(kinds.Enum, `${tableName}OrderBy`),
-                },
-                {
-                    name: "aggFilter",
-                    type: createType(kinds.InputObject, `${tableName}AggFilter`),
-                },
-            ],
-        });
+                    {
+                        name: "filter",
+                        type: createType(kinds.InputObject, `${tableName}Filter`),
+                    },
+                    {
+                        name: "groupBy",
+                        type: createType(kinds.Enum, `${tableName}OrderBy`),
+                    },
+                    {
+                        name: "aggFilter",
+                        type: createType(kinds.InputObject, `${tableName}AggFilter`),
+                    },
+                ],
+            });
+        }
     });
 
     return ret;
@@ -254,40 +258,62 @@ function createTables(fieldInfoList, foreignKeyList)
             });
         });
 
-        const multipleLinks = foreignKeyList.filter(x => x.ForeignTableName === key);
+        const multipleLinks = foreignKeyList
+            .filter(x => x.ForeignTableName === key)
+            .concat(foreignKeyList.filter(x => x.IsArray && x.TableName === table.Key)
+                .map(x => ({
+                    TableName: x.ForeignTableName,
+                    ForeignTableName: x.TableName,
+                    ColumnName: x.ForeignColumnName,
+                    ForeignColumnName: x.ColumnName,
+                    IsArray: x.IsArray,
+                })));
+        
         multipleLinks.forEach(multipleLink =>
         {
-            element.fields.push({
-                name: multipleLink.TableName,
-                type: createListType(kinds.Object, multipleLink.TableName),
-                args: [
-                    {
-                        name: "filter",
-                        type: createType(kinds.InputObject, `${multipleLink.TableName}Filter`),
-                    },
-                    {
-                        name: "orderBy",
-                        type: createType(kinds.Enum, `${multipleLink.TableName}OrderBy`),
-                    },
-                    {
-                        name: "orderByDescending",
-                        type: createType(kinds.Enum, `${multipleLink.TableName}OrderByDescending`),
-                    }
-                ],
-                isDeprecated: false
-            });
+            const [foreignTableName] = Object.keys(tables)
+                .filter(x => x === multipleLink.TableName);
 
-            element.fields.push({
-                name: multipleLink.TableName + aggPostfix,
-                type: createType(kinds.InputObject, `${multipleLink.TableName}${aggPostfix}Nested`),
-                args: [
-                    {
-                        name: "filter",
-                        type: createType(kinds.InputObject, `${multipleLink.TableName}Filter`),
-                    }
-                ],
-                isDeprecated: false
-            });
+            const foreignTable = foreignTableName ? tables[foreignTableName] : null;
+            
+            if (!(foreignTable?.filter(x => x.IsFunction)?.length))
+            {            
+                element.fields.push({
+                    name: multipleLink.TableName,
+                    type: createListType(kinds.Object, multipleLink.TableName),
+                    args: [
+                        {
+                            name: "filter",
+                            type: createType(kinds.InputObject, `${multipleLink.TableName}Filter`),
+                        },
+                        {
+                            name: "orderBy",
+                            type: createType(kinds.Enum, `${multipleLink.TableName}OrderBy`),
+                        },
+                        {
+                            name: "orderByDescending",
+                            type: createType(kinds.Enum, `${multipleLink.TableName}OrderByDescending`),
+                        }
+                    ],
+                    isDeprecated: false
+                });            
+
+                // TODO: implement aggregate functions for array fields
+                if (!multipleLink.IsArray)
+                {
+                    element.fields.push({
+                        name: multipleLink.TableName + aggPostfix,
+                        type: createType(kinds.InputObject, `${multipleLink.TableName}${aggPostfix}Nested`),
+                        args: [
+                            {
+                                name: "filter",
+                                type: createType(kinds.InputObject, `${multipleLink.TableName}Filter`),
+                            }
+                        ],
+                        isDeprecated: false
+                    });
+                }
+            }
         });
 
         ret.push(element);
@@ -312,7 +338,7 @@ function createAggregates(fieldInfoList, foreignKeyList)
 
     const distinctStart = "distinct" + ((aggPostfix[0] === '_') ? "_" : "");
 
-    const tables = api.groupBy(fieldInfoList, "TableName");
+    const tables = api.groupBy(fieldInfoList.filter(x => !x.IsFunction), "TableName");
 
     Object.keys(tables).forEach(key =>
     {
@@ -524,46 +550,48 @@ function createFilters(fieldInfoList, foreignKeyList)
             enumValues: table.map(x => ({ name: x.ColumnName, isDeprecated: false }))
         });
 
-        const aggFilerInputFields = [
-            {
-                name: "count",
-                description: "count",
-                type: createType(kinds.Object, "OperatorFilter")
-            }
-        ];
-
-        table
-            .filter(x => !x.ColumnName.endsWith(idPostfix) && x.ColumnName != idField)
-            .forEach(column =>
+        if (!table.filter(x => x.IsFunction).length)
         {
-            const dataTypeName = toTypeName(column.DataType);
-            let aggFunctionsList = [];
+            const aggFilerInputFields = [
+                {
+                    name: "count",
+                    description: "count",
+                    type: createType(kinds.Object, "OperatorFilter")
+                }
+            ];
 
-            if (numericTypes.includes(dataTypeName))
+            table
+                .filter(x => !x.ColumnName.endsWith(idPostfix) && x.ColumnName !== idField)
+                .forEach(column =>
             {
-                aggFunctionsList = aggFunctions;
-            }
-            else if (dateTypes.filter(x => dataTypeName.startsWith(x)).length)
-            {
-                aggFunctionsList = dateAggFunctions;
-            }
+                const dataTypeName = toTypeName(column.DataType);
+                let aggFunctionsList = [];
 
-            aggFunctionsList.forEach(aggFunction =>
-            {
-                aggFilerInputFields.push(
-                    {
+                if (numericTypes.includes(dataTypeName))
+                {
+                    aggFunctionsList = aggFunctions;
+                }
+                else if (dateTypes.filter(x => dataTypeName.startsWith(x)).length)
+                {
+                    aggFunctionsList = dateAggFunctions;
+                }
+
+                aggFunctionsList.forEach(aggFunction =>
+                {
+                    aggFilerInputFields.push({
                         name: aggFunction + column.ColumnName,
                         description: aggFunction + column.ColumnName,
                         type: createType(kinds.Object, "OperatorFilter"),
                     });
+                });
             });
-        });
 
-        ret.push({
-            name: `${key}AggFilter`,
-            kind: kinds.InputObject,
-            inputFields: aggFilerInputFields,
-        });
+            ret.push({
+                name: `${key}AggFilter`,
+                kind: kinds.InputObject,
+                inputFields: aggFilerInputFields,
+            });
+        }
     });
 
     return ret;
