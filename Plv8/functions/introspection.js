@@ -67,7 +67,8 @@ function getForeignKeyInfo()
     const sql = `SELECT table_name AS "TableName", column_name AS "ColumnName",
                   foreign_table_name AS "ForeignTableName", foreign_column_name AS "ForeignColumnName",
                   is_array AS "IsArray"
-                FROM graphql.schema_foreign_keys`;
+                FROM graphql.schema_foreign_keys
+                ORDER BY table_name, column_name`;
 
     return plv8.execute(sql);
 }
