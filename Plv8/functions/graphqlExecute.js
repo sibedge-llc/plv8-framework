@@ -4,7 +4,8 @@ const configuration = {
         args: {
             query: 'text',
             schema: 'text',
-            user: 'jsonb'
+            user: 'jsonb',
+            variables: 'jsonb'
         }
     },
     apiFunctions: ['gqlquery', 'accessLevels', 'utils']
@@ -17,8 +18,8 @@ const top = require("../helpers/top.js");
 const plv8 = require(top.data.plv8);
 const args = require(top.data.funcArgs.graphqlExecute);
 
-const { query, user } = args;
-let { schema } = args;
+const { user, variables } = args;
+let { schema, query } = args;
 
 const api = top.createApi(configuration);
 
@@ -80,6 +81,12 @@ String.prototype.trim = function ()
     return this.replace(/^\s+|\s+$/g, "");
 };
 
+String.prototype.replaceAll = function(search, replacement)
+{
+    const target = this;
+    return target.split(search).join(replacement);
+};
+
 function canBeRelated(columnName)
 {
     return columnName.length > idPostfix.length;
@@ -100,6 +107,68 @@ function getRelatedNameRow(fkRow)
     {
         return getRelatedName(fkRow.column_name);
     }
+}
+
+function getVariableStringValue(element)
+{
+    if (!element)
+    {
+        return "null";
+    }
+
+    const type = typeof element;
+
+    if (type === 'object')
+    {
+        if (Array.isArray(element))
+        {
+            const arrayItems = element.map(x => getVariableStringValue(x)).ToList();
+
+            const ret = `[${arrayItems.join(',')}]`;
+            return ret;
+        }
+        else
+        {
+            const objectItems = Object.keys(element).map(key => `${key}: ${getVariableStringValue(element[key])}`);
+
+            const ret = `{${objectItems.join(',')}}`;
+            return ret;
+        }
+    }
+    else if (type === 'boolean')
+    {
+        return element ? "true" : "false";
+    }
+    else if (type === 'string')
+    {
+        return `"${element}"`;
+    }
+
+    return element;
+}
+
+function addVariablesToQuery(query1, variables1)
+{
+    query1 = `query ${query1.substr(query1.indexOf('{') - 1)}`;
+    const keys = Object.keys(variables1);
+
+    while(keys.length)
+    {
+        const varName = keys.shift();
+        
+        if (keys.filter(x => x.includes(varName)).length)
+        {
+            keys.push(varName);
+            continue;
+        }
+
+        const varValue = variables1[varName];
+        const value = getVariableStringValue(varValue);
+
+        query1 = query1.replaceAll('$' + varName, value);
+    }
+
+    return query1;
 }
 
 function getOperatorPart(filterField, fieldName, children)
@@ -952,6 +1021,11 @@ function executeAgg(selection, tableName, _result, where, level, aggColumn)
 }
 
 const result = {};
+
+if (!!variables && Object.keys(variables).length)
+{
+    query = addVariablesToQuery(query, variables);
+}
 
 api.gqlquery(query).definitions[0].selectionSet.selections.map(x =>
 {
