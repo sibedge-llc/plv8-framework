@@ -1,6 +1,6 @@
 const configuration = {
     declare: {
-        name: 'plv8.introspection',
+        name: 'graphql.introspection',
         args: {
             schema: 'text',
             idField: 'text',
@@ -51,6 +51,8 @@ const filterOperatorsBool = ["isNull"];
 const filterOperatorsArray = ["in", "notIn"];
 const filterOperatorsObject = ["children"];
 
+const tableNameField = "TableName";
+
 String.prototype.replaceAll = function(search, replacement)
 {
     const target = this;
@@ -64,7 +66,7 @@ function createNamedItem(name)
 
 function getForeignKeyInfo()
 {
-    const sql = `SELECT table_name AS "TableName", column_name AS "ColumnName",
+    const sql = `SELECT table_name AS tableNameField, column_name AS "ColumnName",
                   foreign_table_name AS "ForeignTableName", foreign_column_name AS "ForeignColumnName",
                   is_array AS "IsArray"
                 FROM graphql.schema_foreign_keys
@@ -139,7 +141,7 @@ function createQuery(fieldInfoList)
         fields: []
     };
 
-    const tables = api.groupBy(fieldInfoList, "TableName");
+    const tables = api.groupBy(fieldInfoList, tableNameField);
 
     Object.keys(tables).forEach(tableName =>
     {
@@ -207,7 +209,7 @@ function createTables(fieldInfoList, foreignKeyList)
 {
     const ret = [];
 
-    const tables = api.groupBy(fieldInfoList, "TableName");
+    const tables = api.groupBy(fieldInfoList, tableNameField);
 
     Object.keys(tables).forEach(key =>
     {
@@ -339,7 +341,7 @@ function createAggregates(fieldInfoList, foreignKeyList)
 
     const distinctStart = "distinct" + ((aggPostfix[0] === '_') ? "_" : "");
 
-    const tables = api.groupBy(fieldInfoList.filter(x => !x.IsFunction), "TableName");
+    const tables = api.groupBy(fieldInfoList.filter(x => !x.IsFunction), tableNameField);
 
     Object.keys(tables).forEach(key =>
     {
@@ -486,7 +488,7 @@ function createFilters(fieldInfoList, foreignKeyList)
     const dateAggFunctions = dateAggFunctionsCommon.map(selectExpr);
     const aggFunctions = aggFunctionsCommon.map(selectExpr);
 
-    const tables = api.groupBy(fieldInfoList, "TableName");
+    const tables = api.groupBy(fieldInfoList, tableNameField);
 
     Object.keys(tables).forEach(key =>
     {
