@@ -66,7 +66,7 @@ function createNamedItem(name)
 
 function getForeignKeyInfo()
 {
-    const sql = `SELECT table_name AS tableNameField, column_name AS "ColumnName",
+    const sql = `SELECT table_name AS "TableName", column_name AS "ColumnName",
                   foreign_table_name AS "ForeignTableName", foreign_column_name AS "ForeignColumnName",
                   is_array AS "IsArray"
                 FROM graphql.schema_foreign_keys
