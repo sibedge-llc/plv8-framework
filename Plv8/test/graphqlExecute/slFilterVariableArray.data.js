@@ -9,4 +9,4 @@ exports.query = `query {
   }
   `;
 
-exports.variables = { filter: { company_id: { equals: 2 }, name: { ends: 1 } } };
+exports.variables = { filter: { company_id: { in: [1, 3] } } };

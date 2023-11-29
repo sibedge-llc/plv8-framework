@@ -122,7 +122,7 @@ function getVariableStringValue(element)
     {
         if (Array.isArray(element))
         {
-            const arrayItems = element.map(x => getVariableStringValue(x)).ToList();
+            const arrayItems = element.map(x => getVariableStringValue(x));
 
             const ret = `[${arrayItems.join(',')}]`;
             return ret;
