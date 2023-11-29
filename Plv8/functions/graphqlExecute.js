@@ -149,7 +149,8 @@ function getVariableStringValue(element)
 
 function addVariablesToQuery(query1, variables1)
 {
-    query1 = `query ${query1.substr(query1.indexOf('{') - 1)}`;
+    const index = query1.indexOf('{') - 1;
+    query1 = `query ${query1.substr(index < 0 ? 0 : index)}`;
     const keys = Object.keys(variables1);
 
     while(keys.length)
