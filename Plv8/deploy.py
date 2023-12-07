@@ -6,12 +6,20 @@ import psycopg2
 beginMark = "/*BEGIN*/"
 localMark = "/*LOCAL*/"
 functionsFolder = "./functions/"
+configFolder = "./config/"
 
-connFile = open("./config/connectionString.js", "r")
-connStrJs = connFile.read()
-connFile.close()
+connStr = None
 
-connStr = connStrJs[connStrJs.index("'"):].replace("'", "").replace(";", "")
+connFileName = configFolder + "connectionString.js"
+if os.path.isfile(connFileName):
+    connFile = open(connFileName, "r")
+    connStrJs = connFile.read()
+    connFile.close()
+
+    connStr = connStrJs[connStrJs.index("'"):].replace("'", "").replace(";", "")
+else:
+    connStr = f"postgresql://{os.environ['PLV8_POSTGRES_USER']}:{os.environ['PLV8_POSTGRES_PASSWORD']}@{os.environ['PLV8_POSTGRES_HOST']}:{os.environ['PLV8_POSTGRES_PORT']}/{os.environ['PLV8_DB_NAME']}"
+
 conn = None
 
 try:
