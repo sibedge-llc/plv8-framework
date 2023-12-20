@@ -41,7 +41,7 @@ const idField = 'id';
 const idPostfix = '_id';
 const aggPostfix = '_agg';
 
-const aggFunctions = ['max', 'min', 'avg', 'sum'];
+const aggFunctions = ['max', 'min', 'avg', 'sum', 'any_value'];
 const aggFuncPrefix = (aggPostfix[0] === '_') ? '_' : '';
 const aggDict = {};
 aggFunctions.map(x => aggDict[x + aggFuncPrefix] = `${x.toUpperCase()}($)`);

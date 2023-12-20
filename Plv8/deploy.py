@@ -89,7 +89,6 @@ else:
     for file in files:
         deploy_func(file)
 
-print("---- committing... ----")
 conn.commit()
 cur.close()
 conn.close()

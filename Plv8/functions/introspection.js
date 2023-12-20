@@ -42,8 +42,20 @@ const dataTypes = {
 
 const numericTypes = ["integer", "bigint", "real", "double_precision", "numeric"];
 const dateTypes = ["timestamp", "date", "time"];
+const anyAggFunctionsCommon = ["any_value"];
 const dateAggFunctionsCommon = ["max", "min"];
 const aggFunctionsCommon = ["avg", "sum"].concat(dateAggFunctionsCommon);
+
+let selectExpr = x => x;
+
+if (aggPostfix[0] === '_')
+{
+    selectExpr = x => x + "_";
+}
+
+const dateAggFunctions = dateAggFunctionsCommon.map(selectExpr);
+const aggFunctions = aggFunctionsCommon.map(selectExpr);
+const anyAggFuncions = anyAggFunctionsCommon.map(selectExpr);
 
 const filterOperatorsInt = ["equals", "notEquals", "less", "greater", "lessOrEquals", "greaterOrEquals"];
 const filterOperatorsText = ["contains", "notContains", "arrayContains", "arrayNotContains", "starts", "ends", "equalsNoCase", "jsquery"];
@@ -325,19 +337,25 @@ function createTables(fieldInfoList, foreignKeyList)
     return ret;
 }
 
+function getAggFunctionsList(dataTypeName)
+{
+    let aggFunctionsList = [];
+
+    if (numericTypes.includes(dataTypeName))
+    {
+        aggFunctionsList = aggFunctions;
+    }
+    else if (dateTypes.filter(x => dataTypeName.startsWith(x)).length)
+    {
+        aggFunctionsList = dateAggFunctions;
+    }
+
+    return [...anyAggFuncions, ...aggFunctionsList];
+}
+
 function createAggregates(fieldInfoList, foreignKeyList)
 {
     const ret = [];
-
-    let selectExpr = x => x;
-
-    if (aggPostfix[0] === '_')
-    {
-        selectExpr = x => x + "_";
-    }
-
-    const dateAggFunctions = dateAggFunctionsCommon.map(selectExpr);
-    const aggFunctions = aggFunctionsCommon.map(selectExpr);
 
     const distinctStart = "distinct" + ((aggPostfix[0] === '_') ? "_" : "");
 
@@ -380,29 +398,17 @@ function createAggregates(fieldInfoList, foreignKeyList)
                 isDeprecated: false
             });
 
-            if (!column.ColumnName.endsWith(idPostfix))
+            const aggFunctionsList = getAggFunctionsList(dataTypeName);
+
+            aggFunctionsList.forEach(aggFunction =>
             {
-                let aggFunctionsList = [];
-
-                if (numericTypes.includes(dataTypeName))
-                {
-                    aggFunctionsList = aggFunctions;
-                }
-                else if (dateTypes.filter(x => dataTypeName.startsWith(x)).length)
-                {
-                    aggFunctionsList = dateAggFunctions;
-                }
-
-                aggFunctionsList.forEach(aggFunction =>
-                {
-                    element.fields.push({
-                        args: [],
-                        name: aggFunction + column.ColumnName,
-                        type: createType(kinds.Scalar, dataTypes.Integer),
-                        isDeprecated: false
-                    });
+                element.fields.push({
+                    args: [],
+                    name: aggFunction + column.ColumnName,
+                    type: createType(kinds.Scalar, dataTypes.Integer),
+                    isDeprecated: false
                 });
-            }
+            });
         });
 
         const singleLinks = foreignKeyList.filter(x => x.TableName === key);
@@ -477,16 +483,6 @@ function createFilters(fieldInfoList, foreignKeyList)
                 })))
         }
     ];
-
-    let selectExpr = x => x;
-
-    if (aggPostfix[0] === '_')
-    {
-        selectExpr = x => x + "_";
-    }
-
-    const dateAggFunctions = dateAggFunctionsCommon.map(selectExpr);
-    const aggFunctions = aggFunctionsCommon.map(selectExpr);
 
     const tables = api.groupBy(fieldInfoList, tableNameField);
 
@@ -564,20 +560,11 @@ function createFilters(fieldInfoList, foreignKeyList)
             ];
 
             table
-                .filter(x => !x.ColumnName.endsWith(idPostfix) && x.ColumnName !== idField)
+                .filter(x => x.ColumnName !== idField)
                 .forEach(column =>
             {
                 const dataTypeName = toTypeName(column.DataType);
-                let aggFunctionsList = [];
-
-                if (numericTypes.includes(dataTypeName))
-                {
-                    aggFunctionsList = aggFunctions;
-                }
-                else if (dateTypes.filter(x => dataTypeName.startsWith(x)).length)
-                {
-                    aggFunctionsList = dateAggFunctions;
-                }
+                const aggFunctionsList = getAggFunctionsList(dataTypeName);
 
                 aggFunctionsList.forEach(aggFunction =>
                 {
