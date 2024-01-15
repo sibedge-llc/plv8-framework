@@ -66,7 +66,12 @@ def deploy_func(funcName):
     funcFile.close()
 
     config = get_configuration(data)
-    apiFunctions = config["apiFunctions"]
+
+    apiFuncKey = "apiFunctions"
+    if apiFuncKey in config:
+        apiFunctions = config["apiFunctions"]
+    else:
+        apiFunctions = None
     
     if (apiFunctions is not None) and len(apiFunctions) > 0:
         scriptApi = "const api = {};"
