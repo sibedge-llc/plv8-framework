@@ -8,3 +8,15 @@ exports.dateToString = function(date)
             (dd>9 ? '' : '0') + dd
            ].join('-');
 }
+
+exports.addDays = function(oldDate, days)
+{
+    var date = new Date(oldDate.valueOf());
+    date.setDate(date.getDate() + days);
+    return date;
+}
+
+exports.dateToStr = function(date)
+{
+    return date.toISOString().substring(0, 10);
+}
