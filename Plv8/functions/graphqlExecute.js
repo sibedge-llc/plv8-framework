@@ -849,7 +849,7 @@ function viewTable(selection, tableName, result, where, join, level)
                                 subResultOrdered[a[fkReverseRow.column_name]].push(a);
                             });
 
-                            items.map(item => { item[field.name.value] = subResultOrdered[item[idField]]; });
+                            items.map(item => { item[field.name.value] = subResultOrdered[item[idField]] ?? []; });
                         }
                         else
                         {
