@@ -46,7 +46,11 @@ const aggFuncPrefix = (aggPostfix[0] === '_') ? '_' : '';
 const aggDict = {};
 aggFunctions.map(x => aggDict[x + aggFuncPrefix] = `${x.toUpperCase()}($)`);
 aggDict['distinct' + aggFuncPrefix] = `array_agg(DISTINCT($))`;
+
 const stringValueKind = 'StringValue';
+const nullValueKind = 'NullValue';
+const objectValueKind = 'ObjectValue';
+const intValueKind = 'IntValue';
 
 const aliases = plv8.execute('SELECT * FROM graphql.aliases;');
 
@@ -242,7 +246,7 @@ function getFilter(args, level, fkRows, fkReverseRows)
 
     let qraphqlFilter = '';
 
-    args = args.filter(x => x.name.value === filterName);
+    args = args.filter(x => x.name.value === filterName && x.value.kind === objectValueKind);
 
     if (args.length)
     {
@@ -253,11 +257,11 @@ function getFilter(args, level, fkRows, fkReverseRows)
             .filter(x => x && !relatedNames.includes(x.name.value) && x.name.value !== orName)
             .map(filterVal =>
             {
-                if (filterVal.value.kind === 'NullValue')
+                if (filterVal.value.kind === nullValueKind)
                 {
                     filterParts.push(`a${level}."${filterVal.name.value}" IS NULL`);
                 }
-                else if (filterVal.value.kind !== 'ObjectValue')
+                else if (filterVal.value.kind !== objectValueKind)
                 {
                     filterParts.push((filterVal.value.kind === stringValueKind)
                         ? `a${level}."${filterVal.name.value}"='${filterVal.value.value}'`
@@ -334,7 +338,7 @@ function getAggFilter(args, level)
 {
     let qraphqlFilter = '';
 
-    args = args.filter(x => x.name.value === 'aggFilter');
+    args = args.filter(x => x.name.value === 'aggFilter' && x.value.kind === objectValueKind);
 
     if (args.length)
     {
@@ -372,7 +376,7 @@ function getRelationFilter(args, fkRows)
 
     const ret = {};
 
-    args = args.filter(x => x.name.value === 'filter');
+    args = args.filter(x => x.name.value === 'filter' && x.value.kind === objectValueKind);
 
     if (args.length)
     {
@@ -393,7 +397,7 @@ function getRelationReverseFilter(args, fkRows, level)
 
     const ret = {};
 
-    args = args.filter(x => x.name.value === 'filter');
+    args = args.filter(x => x.name.value === 'filter' && x.value.kind === objectValueKind);
 
     if (args.length)
     {
@@ -506,6 +510,11 @@ function processInheritReverseFilters(selection, fkRows, level)
 
 function createOrderBy(order, isDesc, rows, level)
 {
+    if (order.value.kind !== stringValueKind)
+    {
+        return "";
+    }
+
     const additionalOrder = order.value.value !== idField
         && rows.map(x => x.column_name).includes(idField)
             ? `, a${level}."${idField}"` : "";
@@ -647,14 +656,15 @@ function viewTable(selection, tableName, result, where, join, level)
             const order = orderArgs[0];
             orderBy = createOrderBy(order, false, rows, level);
         }
-        else if (orderDescArgs.length > 0)
+        
+        if (!orderBy.length && orderDescArgs.length > 0)
         {
             const orderDesc = orderDescArgs[0];
             orderBy = createOrderBy(orderDesc, true, rows, level);
         }
 
-        const skipArgs = selection.arguments.filter(x => x.name.value === 'skip');
-        const takeArgs = selection.arguments.filter(x => x.name.value === 'take');
+        const skipArgs = selection.arguments.filter(x => x.name.value === 'skip' && x.value.kind === intValueKind);
+        const takeArgs = selection.arguments.filter(x => x.name.value === 'take' && x.value.kind === intValueKind);
 
         if (takeArgs.length > 0)
         {
@@ -1033,7 +1043,7 @@ api.gqlquery(query).definitions[0].selectionSet.selections.map(x =>
     if (x.name.value.length > aggPostfix.length
         && x.name.value.substr(x.name.value.length - aggPostfix.length) === aggPostfix)
     {
-        const groupArgs = x.arguments.filter(x => x.name.value === 'groupBy');
+        const groupArgs = x.arguments.filter(x => x.name.value === 'groupBy' && x.value.kind === stringValueKind);
         let groupBy = '';
 
         if (groupArgs.length > 0)
