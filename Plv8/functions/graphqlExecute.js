@@ -200,6 +200,10 @@ function getOperatorPart(filterField, fieldName, children)
         
         return filterParts.join(' AND ');
     }
+    else if (operatorName === 'all')
+    {
+        return (value === true) ? "TRUE" : "FALSE";
+    }
     else if (api.isArrayOperator(operator))
     {
         return `${value}${operator}(${fieldName})`;

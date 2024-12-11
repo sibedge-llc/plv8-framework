@@ -59,7 +59,7 @@ const anyAggFuncions = anyAggFunctionsCommon.map(selectExpr);
 
 const filterOperatorsInt = ["equals", "notEquals", "less", "greater", "lessOrEquals", "greaterOrEquals"];
 const filterOperatorsText = ["contains", "notContains", "arrayContains", "arrayNotContains", "starts", "ends", "equalsNoCase", "jsquery"];
-const filterOperatorsBool = ["isNull"];
+const filterOperatorsBool = ["isNull", "all"];
 const filterOperatorsArray = ["in", "notIn"];
 const filterOperatorsObject = ["children"];
 
