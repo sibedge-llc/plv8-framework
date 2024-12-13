@@ -48,6 +48,7 @@ aggFunctions.map(x => aggDict[x + aggFuncPrefix] = `${x.toUpperCase()}($)`);
 aggDict['distinct' + aggFuncPrefix] = `array_agg(DISTINCT($))`;
 
 const stringValueKind = 'StringValue';
+const enumValueKind = 'EnumValue';
 const nullValueKind = 'NullValue';
 const objectValueKind = 'ObjectValue';
 const intValueKind = 'IntValue';
@@ -55,6 +56,11 @@ const intValueKind = 'IntValue';
 const aliases = plv8.execute('SELECT * FROM graphql.aliases;');
 
 const fkData = {};
+
+function isStringKind(kind)
+{
+    return kind === stringValueKind || kind === enumValueKind;
+}
 
 function getAuthInfo(tableName, level)
 {
@@ -115,7 +121,7 @@ function getRelatedNameRow(fkRow)
 
 function getVariableStringValue(element)
 {
-    if (!element)
+    if (!element && element !== 0)
     {
         return "null";
     }
@@ -212,12 +218,12 @@ function getOperatorPart(filterField, fieldName, children)
     {
         const values = filterField.value.values
             ? filterField.value.values.map(x => ({
-                isString: x.kind === stringValueKind,
+                isString: isStringKind(x.kind),
                 value: x.value
             }))
             : [];
 
-        value = api.getOperatorValue(operatorName, value, values, kind === stringValueKind);
+        value = api.getOperatorValue(operatorName, value, values, isStringKind(kind));
     } 
 
     if (children && children.length)
@@ -267,7 +273,7 @@ function getFilter(args, level, fkRows, fkReverseRows)
                 }
                 else if (filterVal.value.kind !== objectValueKind)
                 {
-                    filterParts.push((filterVal.value.kind === stringValueKind)
+                    filterParts.push((isStringKind(filterVal.value.kind))
                         ? `a${level}."${filterVal.name.value}"='${filterVal.value.value}'`
                         : `a${level}."${filterVal.name.value}"=${filterVal.value.value}`);
                 }
@@ -514,7 +520,7 @@ function processInheritReverseFilters(selection, fkRows, level)
 
 function createOrderBy(order, isDesc, rows, level)
 {
-    if (order.value.kind !== stringValueKind)
+    if (!isStringKind(order.value.kind))
     {
         return "";
     }
@@ -1047,7 +1053,7 @@ api.gqlquery(query).definitions[0].selectionSet.selections.map(x =>
     if (x.name.value.length > aggPostfix.length
         && x.name.value.substr(x.name.value.length - aggPostfix.length) === aggPostfix)
     {
-        const groupArgs = x.arguments.filter(x => x.name.value === 'groupBy' && x.value.kind === stringValueKind);
+        const groupArgs = x.arguments.filter(x => x.name.value === 'groupBy' && isStringKind(x.value.kind));
         let groupBy = '';
 
         if (groupArgs.length > 0)
